@@ -1,0 +1,166 @@
+apiVersion: v1
+kind: Namespace
+metadata:
+  name: devops-apps
+---
+apiVersion: apps/v1
+kind: Deployment
+metadata:
+  name: cost-optimizer
+  namespace: devops-apps
+  labels:
+    app: cost-optimizer
+    type: devops-app
+spec:
+  replicas: 1
+  selector:
+    matchLabels:
+      app: cost-optimizer
+  template:
+    metadata:
+      labels:
+        app: cost-optimizer
+        type: devops-app
+    spec:
+      serviceAccountName: cost-optimizer
+      containers:
+      - name: cost-optimizer
+        image: cost-optimizer:latest
+        imagePullPolicy: IfNotPresent
+        env:
+        - name: NAMESPACE
+          value: "default"  # Monitor all namespaces by default
+        - name: CUB_SPACE
+          value: "acorn-bear-qa"
+        - name: CUB_API_URL
+          value: "https://hub.confighub.com/api/v1"
+        - name: CUB_TOKEN
+          valueFrom:
+            secretKeyRef:
+              name: cost-optimizer-secrets
+              key: cub-token
+        - name: CLAUDE_API_KEY
+          valueFrom:
+            secretKeyRef:
+              name: cost-optimizer-secrets
+              key: claude-api-key
+        - name: AUTO_OPTIMIZE
+          value: "false"  # Don't automatically apply optimizations
+        resources:
+          requests:
+            memory: "256Mi"
+            cpu: "200m"
+          limits:
+            memory: "512Mi"
+            cpu: "500m"
+        livenessProbe:
+          httpGet:
+            path: /health
+            port: 8080
+          initialDelaySeconds: 30
+          periodSeconds: 30
+        ports:
+        - containerPort: 8080
+          name: metrics
+---
+apiVersion: v1
+kind: Service
+metadata:
+  name: cost-optimizer
+  namespace: devops-apps
+  labels:
+    app: cost-optimizer
+spec:
+  selector:
+    app: cost-optimizer
+  ports:
+  - port: 8080
+    targetPort: 8080
+    name: metrics
+---
+apiVersion: v1
+kind: ServiceAccount
+metadata:
+  name: cost-optimizer
+  namespace: devops-apps
+---
+apiVersion: rbac.authorization.k8s.io/v1
+kind: ClusterRole
+metadata:
+  name: cost-optimizer
+rules:
+# Read all resources for cost analysis
+- apiGroups: [""]
+  resources: ["pods", "services", "persistentvolumeclaims", "nodes"]
+  verbs: ["get", "list"]
+- apiGroups: ["apps"]
+  resources: ["deployments", "statefulsets", "daemonsets", "replicasets"]
+  verbs: ["get", "list"]
+- apiGroups: ["batch"]
+  resources: ["jobs", "cronjobs"]
+  verbs: ["get", "list"]
+# Read metrics for actual usage
+- apiGroups: ["metrics.k8s.io"]
+  resources: ["pods", "nodes"]
+  verbs: ["get", "list"]
+# Read HPA for scaling analysis
+- apiGroups: ["autoscaling"]
+  resources: ["horizontalpodautoscalers"]
+  verbs: ["get", "list"]
+# Storage analysis
+- apiGroups: ["storage.k8s.io"]
+  resources: ["storageclasses"]
+  verbs: ["get", "list"]
+---
+apiVersion: rbac.authorization.k8s.io/v1
+kind: ClusterRoleBinding
+metadata:
+  name: cost-optimizer
+roleRef:
+  apiGroup: rbac.authorization.k8s.io
+  kind: ClusterRole
+  name: cost-optimizer
+subjects:
+- kind: ServiceAccount
+  name: cost-optimizer
+  namespace: devops-apps
+---
+apiVersion: v1
+kind: Secret
+metadata:
+  name: cost-optimizer-secrets
+  namespace: devops-apps
+type: Opaque
+stringData:
+  cub-token: "your-cub-token-here"
+  claude-api-key: "your-claude-api-key-here"
+---
+apiVersion: v1
+kind: ConfigMap
+metadata:
+  name: cost-optimizer-config
+  namespace: devops-apps
+data:
+  pricing.yaml: |
+    # Cloud pricing configuration
+    aws:
+      compute:
+        cpu_hour: 0.0346  # per vCPU hour
+        memory_gb_hour: 0.0041  # per GB hour
+      storage:
+        gp3_gb_month: 0.08
+        io2_gb_month: 0.125
+    gcp:
+      compute:
+        cpu_hour: 0.0312
+        memory_gb_hour: 0.0038
+      storage:
+        standard_gb_month: 0.04
+        ssd_gb_month: 0.17
+    azure:
+      compute:
+        cpu_hour: 0.0358
+        memory_gb_hour: 0.0043
+      storage:
+        standard_gb_month: 0.05
+        premium_gb_month: 0.15
