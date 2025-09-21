@@ -1,14 +1,16 @@
 package main
 
 import (
+    "bytes"
     "context"
     "encoding/json"
     "fmt"
+    "io"
     "log"
+    "net/http"
     "os"
     "time"
 
-    "github.com/fluxcd/pkg/apis/meta"
     metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
     "k8s.io/apimachinery/pkg/apis/meta/v1/unstructured"
     "k8s.io/apimachinery/pkg/runtime/schema"
@@ -377,6 +379,10 @@ func (d *FluxDriftDetector) HandleDrift(drifts []DriftInfo) {
 }
 
 func (d *FluxDriftDetector) getRemediationAdvice(drift DriftInfo) string {
+    if d.claudeClient == nil {
+        return "Claude not configured - manual review required"
+    }
+
     prompt := fmt.Sprintf(`
 A Flux-managed resource has drifted:
 - Resource: %s/%s
@@ -389,11 +395,71 @@ What's the best way to remediate this drift? Should we:
 2. Update the source to match current state?
 3. Revert the manual changes?
 
-Provide a brief recommendation.
+Provide a brief recommendation in one sentence.
 `, drift.Kind, drift.Name, drift.Namespace, drift.Message, drift.FluxSource)
 
-    // Call Claude API (simplified)
-    return "Force reconcile recommended"
+    response, err := d.claudeClient.Complete(prompt)
+    if err != nil {
+        log.Printf("Claude API error: %v", err)
+        return "Claude analysis failed - manual review required"
+    }
+
+    return response
+}
+
+// Complete makes the actual Claude API call
+func (c *ClaudeClient) Complete(prompt string) (string, error) {
+    payload := map[string]interface{}{
+        "model":       "claude-3-opus-20240229",
+        "max_tokens":  500,
+        "temperature": 0,
+        "messages": []map[string]string{
+            {
+                "role":    "user",
+                "content": prompt,
+            },
+        },
+    }
+
+    jsonData, err := json.Marshal(payload)
+    if err != nil {
+        return "", err
+    }
+
+    req, err := http.NewRequest("POST", "https://api.anthropic.com/v1/messages", bytes.NewBuffer(jsonData))
+    if err != nil {
+        return "", err
+    }
+
+    req.Header.Set("x-api-key", c.apiKey)
+    req.Header.Set("anthropic-version", "2023-06-01")
+    req.Header.Set("content-type", "application/json")
+
+    resp, err := c.client.Do(req)
+    if err != nil {
+        return "", err
+    }
+    defer resp.Body.Close()
+
+    body, err := io.ReadAll(resp.Body)
+    if err != nil {
+        return "", err
+    }
+
+    // Parse Claude response
+    var claudeResp map[string]interface{}
+    if err := json.Unmarshal(body, &claudeResp); err != nil {
+        return "", err
+    }
+
+    // Extract the actual response text
+    if content, ok := claudeResp["content"].([]interface{}); ok && len(content) > 0 {
+        if text, ok := content[0].(map[string]interface{})["text"].(string); ok {
+            return text, nil
+        }
+    }
+
+    return "", fmt.Errorf("unexpected Claude response format")
 }
 
 func (d *FluxDriftDetector) createConfigHubFix(drift DriftInfo) {
@@ -406,18 +472,21 @@ func (d *FluxDriftDetector) createConfigHubFix(drift DriftInfo) {
 type CubClient struct {
     baseURL string
     token   string
+    client  *http.Client
 }
 
 func NewCubClient() *CubClient {
     return &CubClient{
         baseURL: getEnvOrDefault("CUB_API_URL", "https://hub.confighub.com/api/v1"),
         token:   os.Getenv("CUB_TOKEN"),
+        client:  &http.Client{Timeout: 30 * time.Second},
     }
 }
 
 // ClaudeClient - Claude API client
 type ClaudeClient struct {
     apiKey string
+    client *http.Client
 }
 
 func NewClaudeClient() *ClaudeClient {
@@ -425,7 +494,10 @@ func NewClaudeClient() *ClaudeClient {
     if apiKey == "" {
         return nil
     }
-    return &ClaudeClient{apiKey: apiKey}
+    return &ClaudeClient{
+        apiKey: apiKey,
+        client: &http.Client{Timeout: 60 * time.Second},
+    }
 }
 
 func getK8sConfig() (*rest.Config, error) {
