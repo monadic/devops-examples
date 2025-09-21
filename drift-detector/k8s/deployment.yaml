@@ -1,0 +1,98 @@
+apiVersion: v1
+kind: Namespace
+metadata:
+  name: devops-apps
+---
+apiVersion: apps/v1
+kind: Deployment
+metadata:
+  name: drift-detector
+  namespace: devops-apps
+  labels:
+    app: drift-detector
+spec:
+  replicas: 1
+  selector:
+    matchLabels:
+      app: drift-detector
+  template:
+    metadata:
+      labels:
+        app: drift-detector
+    spec:
+      serviceAccountName: drift-detector
+      containers:
+      - name: drift-detector
+        image: drift-detector:latest
+        imagePullPolicy: IfNotPresent
+        env:
+        - name: NAMESPACE
+          value: "qa"
+        - name: CUB_SPACE
+          value: "acorn-bear-qa"
+        - name: CUB_API_URL
+          value: "https://hub.confighub.com/api/v1"
+        - name: CUB_TOKEN
+          valueFrom:
+            secretKeyRef:
+              name: drift-detector-secrets
+              key: cub-token
+        - name: CLAUDE_API_KEY
+          valueFrom:
+            secretKeyRef:
+              name: drift-detector-secrets
+              key: claude-api-key
+              optional: true
+        - name: AUTO_FIX
+          value: "false"
+        resources:
+          requests:
+            memory: "128Mi"
+            cpu: "100m"
+          limits:
+            memory: "256Mi"
+            cpu: "200m"
+---
+apiVersion: v1
+kind: ServiceAccount
+metadata:
+  name: drift-detector
+  namespace: devops-apps
+---
+apiVersion: rbac.authorization.k8s.io/v1
+kind: ClusterRole
+metadata:
+  name: drift-detector
+rules:
+- apiGroups: [""]
+  resources: ["pods", "services", "configmaps", "secrets"]
+  verbs: ["get", "list"]
+- apiGroups: ["apps"]
+  resources: ["deployments", "statefulsets", "daemonsets"]
+  verbs: ["get", "list"]
+- apiGroups: ["batch"]
+  resources: ["jobs", "cronjobs"]
+  verbs: ["get", "list"]
+---
+apiVersion: rbac.authorization.k8s.io/v1
+kind: ClusterRoleBinding
+metadata:
+  name: drift-detector
+roleRef:
+  apiGroup: rbac.authorization.k8s.io
+  kind: ClusterRole
+  name: drift-detector
+subjects:
+- kind: ServiceAccount
+  name: drift-detector
+  namespace: devops-apps
+---
+apiVersion: v1
+kind: Secret
+metadata:
+  name: drift-detector-secrets
+  namespace: devops-apps
+type: Opaque
+stringData:
+  cub-token: "your-cub-token-here"
+  claude-api-key: "your-claude-api-key-here"
