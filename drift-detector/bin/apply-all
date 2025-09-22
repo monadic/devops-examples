@@ -1,0 +1,64 @@
+#!/bin/bash
+
+# Apply all drift-detector units to Kubernetes using ConfigHub
+
+set -e
+
+if [ ! -e ".cub-project" ]; then
+  echo "Run bin/install-base first to create the base configuration"
+  exit 1
+fi
+
+project=$(cat .cub-project)
+
+# Determine which environment to apply (default: dev)
+env=${1:-dev}
+space=$project-$env
+
+echo "🚀 Applying drift-detector to $env environment..."
+echo "Space: $space"
+echo ""
+
+# Check if space exists
+if ! cub space get $space &>/dev/null; then
+  echo "❌ Space $space does not exist. Run bin/install-envs first."
+  exit 1
+fi
+
+# Apply units in correct order
+echo "1. Applying namespace..."
+cub unit apply namespace --space $space || true
+
+echo "2. Creating secrets (you need to provide these)..."
+cat <<EOF
+kubectl create secret generic drift-detector-secrets \
+  --from-literal=cub-token=\$CUB_TOKEN \
+  --from-literal=claude-api-key=\$CLAUDE_API_KEY \
+  -n devops-apps --dry-run=client -o yaml | kubectl apply -f -
+EOF
+
+echo ""
+echo "3. Applying RBAC..."
+cub unit apply drift-detector-rbac --space $space
+
+echo "4. Applying Service..."
+cub unit apply drift-detector-service --space $space
+
+echo "5. Applying Deployment..."
+cub unit apply drift-detector-deployment --space $space
+
+# Use bulk apply for all units with specific label
+echo ""
+echo "Alternative: Applying all units with bulk operation..."
+cub bulk apply --space $space --where "Labels.app = 'drift-detector'"
+
+echo ""
+echo "✅ Application complete!"
+echo ""
+echo "Check status with:"
+echo "  kubectl get all -n devops-apps"
+echo "  kubectl logs -n devops-apps -l app=drift-detector"
+echo ""
+echo "View in ConfigHub:"
+echo "  cub unit list --space $space --show-status"
+echo "  cub unit tree --filter $project --space '*'  --show-status"

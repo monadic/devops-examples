@@ -1,0 +1,97 @@
+#!/bin/bash
+
+# Create base ConfigHub units for drift-detector deployment
+# This follows the global-app pattern where ALL configuration is managed through ConfigHub
+
+set -e
+
+# Get or create project prefix
+if [ -e ".cub-project" ]; then
+  project=$(cat .cub-project)
+  echo "Using existing project: $project"
+else
+  if [ -z "$1" ]; then
+    # Generate a new space prefix that is not in use
+    project="drift-detector-$(date +%s)"
+    echo "Generated project name: $project"
+  else
+    project=$1
+  fi
+  echo $project > .cub-project
+fi
+
+echo "🚀 Setting up ConfigHub spaces and units for drift-detector..."
+
+# Create main space for drift-detector
+echo "Creating space: $project"
+cub space create $project --label project=$project --label app=drift-detector || true
+
+# Create filters space
+echo "Creating filters space: $project-filters"
+cub space create $project-filters --label project=$project --label type=filters || true
+
+# Create filters for targeting
+echo "Creating filters..."
+cub filter create all   Unit --where-field "Space.Labels.project = '$project'" --space $project-filters || true
+cub filter create devops-apps Unit --where-field "Labels.type='devops-app'" --space $project-filters || true
+cub filter create critical Unit --where-field "Labels.tier='critical'" --space $project-filters || true
+cub filter create drift-detector Unit --where-field "Labels.app='drift-detector'" --space $project-filters || true
+
+# Create base space for base configurations
+echo "Creating base space: $project-base"
+cub space create $project-base --label base=true --label project=$project || true
+
+# Create units from base configurations
+echo "Loading base configurations as units..."
+
+# Namespace unit
+cub unit create namespace confighub/base/namespace.yaml \
+  --space $project-base \
+  --label type=infrastructure \
+  --label tier=critical || true
+
+# RBAC unit
+cub unit create drift-detector-rbac confighub/base/drift-detector-rbac.yaml \
+  --space $project-base \
+  --label type=devops-app \
+  --label app=drift-detector \
+  --label tier=critical || true
+
+# Deployment unit
+cub unit create drift-detector-deployment confighub/base/drift-detector-deployment.yaml \
+  --space $project-base \
+  --label type=devops-app \
+  --label app=drift-detector \
+  --label tier=critical || true
+
+# Service unit
+cub unit create drift-detector-service confighub/base/drift-detector-service.yaml \
+  --space $project-base \
+  --label type=devops-app \
+  --label app=drift-detector \
+  --label tier=critical || true
+
+# Create Sets for grouping
+echo "Creating sets for grouped operations..."
+cub set create devops-apps-set \
+  --space $project \
+  --label tier=critical \
+  --label type=devops-app || true
+
+cub set create drift-detector-set \
+  --space $project \
+  --label app=drift-detector \
+  --label tier=critical || true
+
+echo "✅ Base setup complete!"
+echo ""
+echo "Next steps:"
+echo "1. Run: bin/install-envs    # Set up environment hierarchy (dev, staging, prod)"
+echo "2. Run: bin/apply-all       # Apply all units to Kubernetes"
+echo "3. Run: bin/view-status     # Check deployment status"
+echo ""
+echo "To view the ConfigHub structure:"
+echo "  cub unit tree --node=space --filter $project --space '*'"
+echo ""
+echo "To view all units:"
+echo "  cub unit list --space $project-base"

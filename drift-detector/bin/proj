@@ -1,0 +1,5 @@
+#!/bin/bash
+# Helper to get project name
+if [ -e ".cub-project" ]; then
+  cat .cub-project
+fi

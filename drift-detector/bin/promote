@@ -1,0 +1,66 @@
+#!/bin/bash
+
+# Promote drift-detector configuration through environments using push-upgrade
+
+set -e
+
+if [ ! -e ".cub-project" ]; then
+  echo "Run bin/install-base first"
+  exit 1
+fi
+
+project=$(cat .cub-project)
+
+if [ $# -ne 2 ]; then
+  echo "Usage: $0 <from-env> <to-env>"
+  echo "Example: $0 dev staging"
+  echo "Example: $0 staging prod"
+  exit 1
+fi
+
+from_env=$1
+to_env=$2
+from_space=$project-$from_env
+to_space=$project-$to_env
+
+echo "🔄 Promoting drift-detector from $from_env to $to_env..."
+echo "From space: $from_space"
+echo "To space: $to_space"
+echo ""
+
+# Check if spaces exist
+if ! cub space get $from_space &>/dev/null; then
+  echo "❌ Source space $from_space does not exist"
+  exit 1
+fi
+
+if ! cub space get $to_space &>/dev/null; then
+  echo "❌ Target space $to_space does not exist"
+  exit 1
+fi
+
+# Check for changes that need promotion
+echo "Checking for changes to promote..."
+cub unit list --space $to_space --filter "UpgradeNeeded = true"
+
+# Use push-upgrade pattern to promote changes
+echo ""
+echo "Promoting changes using push-upgrade..."
+
+# Push upgrade for all units in the target space that have upstream in source space
+cub bulk patch \
+  --space $to_space \
+  --where "UpstreamSpaceID = '$from_space'" \
+  --upgrade true
+
+echo ""
+echo "✅ Promotion complete!"
+echo ""
+echo "View updated units:"
+echo "  cub unit list --space $to_space --show-status"
+echo ""
+echo "Check upgrade status:"
+echo "  cub unit tree --filter $project --space '*' --show-upgrade"
+echo ""
+echo "Apply to Kubernetes:"
+echo "  bin/apply-all $to_env"

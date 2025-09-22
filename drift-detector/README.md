@@ -2,6 +2,14 @@
 
 A persistent Kubernetes application that continuously monitors for configuration drift and automatically fixes it using ConfigHub's Sets, Filters, and push-upgrade patterns.
 
+## 🎯 Key Innovation: ConfigHub-Driven Deployment
+
+Following the global-app pattern, the drift-detector itself is deployed and managed through ConfigHub units, not traditional kubectl/YAML files. This means:
+- **All configuration is in ConfigHub** - deployment, service, RBAC, etc.
+- **Environment hierarchy** - dev → staging → prod with push-upgrade
+- **Version control through ConfigHub** - not just Git
+- **Bulk operations** - deploy all components with one command
+
 ## How It Works
 
 ### Drift Detection Method
@@ -39,7 +47,49 @@ When drift is detected, you'll see:
                     └─────────────┘
 ```
 
-## Running Locally
+## Quick Start: ConfigHub-Driven Deployment
+
+### Step 1: Set up ConfigHub Units
+
+```bash
+# Install base configurations in ConfigHub
+bin/install-base
+
+# Set up environment hierarchy (dev → staging → prod)
+bin/install-envs
+
+# View the created structure
+cub unit tree --node=space --filter drift-detector --space '*'
+```
+
+### Step 2: Deploy to Kubernetes via ConfigHub
+
+```bash
+# Create secrets first
+kubectl create secret generic drift-detector-secrets \
+  --from-literal=cub-token=$CUB_TOKEN \
+  --from-literal=claude-api-key=$CLAUDE_API_KEY \
+  -n devops-apps
+
+# Apply all units to dev environment
+bin/apply-all dev
+
+# Or apply to specific environment
+bin/apply-all staging
+bin/apply-all prod
+```
+
+### Step 3: Promote Through Environments
+
+```bash
+# After testing in dev, promote to staging
+bin/promote dev staging
+
+# After validation in staging, promote to prod
+bin/promote staging prod
+```
+
+## Running Locally (Development)
 
 ```bash
 # Set environment variables
@@ -52,19 +102,27 @@ go build
 ./drift-detector
 ```
 
-## Running in Kubernetes
+## ConfigHub Structure
 
-```bash
-# Create namespace and secrets
-kubectl create namespace devops-apps
-kubectl create secret generic drift-detector-secrets \
-  --from-literal=cub-token=$CUB_TOKEN \
-  --from-literal=claude-api-key=$CLAUDE_API_KEY \
-  -n devops-apps
+The drift-detector follows the global-app pattern with this hierarchy:
 
-# Deploy
-kubectl apply -f k8s/deployment.yaml
 ```
+drift-detector (main space)
+├── drift-detector-filters (filters for targeting)
+├── drift-detector-base (base configurations)
+│   ├── namespace.yaml
+│   ├── drift-detector-rbac.yaml
+│   ├── drift-detector-deployment.yaml
+│   └── drift-detector-service.yaml
+├── drift-detector-dev (cloned from base)
+├── drift-detector-staging (cloned from dev)
+└── drift-detector-prod (cloned from staging)
+```
+
+Each environment inherits from its upstream:
+- **base** → dev → staging → prod
+- Changes flow through push-upgrade pattern
+- Each environment can have local customizations
 
 ## Configuration
 

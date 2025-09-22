@@ -1,109 +1,44 @@
 #!/bin/bash
-# Cleanup script for drift-detector
-# Removes all created resources
+
+# Clean up all ConfigHub resources created by this example
 
 set -e
 
-echo "🧹 Drift Detector Cleanup"
-echo "========================"
-
-# Check for project file
-if [ ! -e ".drift-detector-project" ]; then
-    echo "ℹ️  No project found to clean up."
-    exit 0
+if [ ! -e ".cub-project" ]; then
+  echo "No project file found"
+  exit 0
 fi
 
-project=$(cat .drift-detector-project)
+project=$(cat .cub-project)
 
-echo "⚠️  This will delete all resources for project: $project"
-echo ""
-echo "Resources to be deleted:"
-echo "  • ConfigHub space: $project"
-echo "  • ConfigHub filters space: $project-filters"
-echo "  • All units, sets, and filters in these spaces"
-if command -v kind &> /dev/null && kind get clusters 2>/dev/null | grep -q "devops-test"; then
-    echo "  • Kind cluster: devops-test (optional)"
-fi
-echo ""
-read -p "Are you sure? (y/N) " -n 1 -r
-echo ""
+echo "⚠️  WARNING: This will delete all ConfigHub spaces and units for project: $project"
+echo "Press Ctrl+C to cancel or Enter to continue..."
+read
 
-if [[ ! $REPLY =~ ^[Yy]$ ]]; then
-    echo "❌ Cleanup cancelled"
-    exit 1
-fi
+echo "Deleting spaces..."
 
-# Clean up ConfigHub resources
-if command -v cub &> /dev/null && cub auth get-token &> /dev/null; then
-    echo "🗑️  Cleaning up ConfigHub resources..."
+# Delete in reverse order (downstream first)
+for env in us-prod eu-prod asia-prod prod staging dev base filters; do
+  space=$project-$env
+  if [ "$env" == "base" ] || [ "$env" == "filters" ]; then
+    space=$project-$env
+  else
+    space=$project-$env
+  fi
 
-    # Delete units in main space
-    echo "  Deleting units..."
-    cub unit list --space $project --json 2>/dev/null | \
-        jq -r '.[] | .Slug' | \
-        xargs -I {} cub unit delete {} --space $project 2>/dev/null || true
+  echo "Deleting space: $space"
+  cub space delete $space --force 2>/dev/null || true
+done
 
-    # Delete sets
-    echo "  Deleting sets..."
-    cub set list --space $project --json 2>/dev/null | \
-        jq -r '.[] | .Slug' | \
-        xargs -I {} cub set delete {} --space $project 2>/dev/null || true
-
-    # Delete filters
-    echo "  Deleting filters..."
-    cub filter list --space $project-filters --json 2>/dev/null | \
-        jq -r '.[] | .Slug' | \
-        xargs -I {} cub filter delete {} --space $project-filters 2>/dev/null || true
-
-    # Delete spaces
-    echo "  Deleting spaces..."
-    cub space delete $project-filters 2>/dev/null || true
-    cub space delete $project 2>/dev/null || true
-
-    echo "✅ ConfigHub resources cleaned up"
-else
-    echo "⚠️  ConfigHub not accessible, skipping ConfigHub cleanup"
-fi
+# Delete main space
+echo "Deleting main space: $project"
+cub space delete $project --force 2>/dev/null || true
 
 # Clean up Kubernetes resources
-if command -v kubectl &> /dev/null; then
-    echo "🗑️  Cleaning up Kubernetes resources..."
+echo "Cleaning up Kubernetes resources..."
+kubectl delete namespace devops-apps --ignore-not-found=true
 
-    # Delete drift-test namespace
-    if kubectl get namespace drift-test &> /dev/null; then
-        echo "  Deleting drift-test namespace..."
-        kubectl delete namespace drift-test --wait=false 2>/dev/null || true
-    fi
+# Remove project file
+rm -f .cub-project
 
-    # Delete drift-detector namespace if it exists
-    if kubectl get namespace drift-detector &> /dev/null; then
-        echo "  Deleting drift-detector namespace..."
-        kubectl delete namespace drift-detector --wait=false 2>/dev/null || true
-    fi
-
-    echo "✅ Kubernetes resources cleaned up"
-fi
-
-# Optional: Delete Kind cluster
-if command -v kind &> /dev/null && kind get clusters 2>/dev/null | grep -q "devops-test"; then
-    echo ""
-    read -p "Delete Kind cluster 'devops-test'? (y/N) " -n 1 -r
-    echo ""
-    if [[ $REPLY =~ ^[Yy]$ ]]; then
-        echo "🗑️  Deleting Kind cluster..."
-        kind delete cluster --name devops-test
-        echo "✅ Kind cluster deleted"
-    fi
-fi
-
-# Clean up local files
-echo "🗑️  Cleaning up local files..."
-rm -f .drift-detector-project
-rm -f .drift-detector-config
-rm -f drift-detector
-
-echo ""
-echo "✅ Cleanup complete!"
-echo ""
-echo "To start fresh:"
-echo "  ./bin/install"
+echo "✅ Cleanup complete"

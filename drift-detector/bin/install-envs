@@ -1,0 +1,113 @@
+#!/bin/bash
+
+# Set up environment hierarchy following global-app pattern
+# Creates dev → staging → prod hierarchy with upstream/downstream relationships
+
+set -e
+
+if [ ! -e ".cub-project" ]; then
+  echo "Run bin/install-base first to create the base configuration"
+  exit 1
+fi
+
+project=$(cat .cub-project)
+
+echo "📦 Setting up environment hierarchy for $project..."
+
+# Function to clone units from upstream
+clone_env_units() {
+  local from_space=$1
+  local to_space=$2
+  local env_name=$3
+
+  echo "  Cloning units from $from_space to $to_space..."
+
+  # Clone each unit with upstream relationship
+  for unit in namespace drift-detector-rbac drift-detector-deployment drift-detector-service; do
+    echo "    Cloning $unit..."
+    cub unit create $unit \
+      --space $to_space \
+      --upstream-unit $unit \
+      --upstream-space $from_space \
+      --label environment=$env_name || true
+  done
+}
+
+# Create dev environment space
+echo "Creating dev environment..."
+cub space create $project-dev \
+  --label project=$project \
+  --label environment=dev \
+  --upstream-space $project-base || true
+
+clone_env_units $project-base $project-dev dev
+
+# Create staging environment space (downstream from dev)
+echo "Creating staging environment..."
+cub space create $project-staging \
+  --label project=$project \
+  --label environment=staging \
+  --upstream-space $project-dev || true
+
+clone_env_units $project-dev $project-staging staging
+
+# Create prod environment space (downstream from staging)
+echo "Creating prod environment..."
+cub space create $project-prod \
+  --label project=$project \
+  --label environment=prod \
+  --upstream-space $project-staging || true
+
+clone_env_units $project-staging $project-prod prod
+
+# Optional: Create regional prod variants
+if [ "$1" == "--with-regions" ]; then
+  echo "Creating regional production VARIANTS (clone + edit pattern)..."
+
+  for region in us eu asia; do
+    echo "Creating $region-prod variant..."
+    cub space create $project-$region-prod \
+      --label project=$project \
+      --label environment=prod \
+      --label region=$region \
+      --upstream-space $project-prod || true
+
+    # Clone units to create base for variants
+    clone_env_units $project-prod $project-$region-prod $region-prod
+
+    # Edit clones to create region-specific variants
+    echo "  Customizing $region variant..."
+    if [ "$region" == "us" ]; then
+      # US variant: higher resources
+      cub run set-container-resources --unit drift-detector-deployment \
+        --space $project-$region-prod \
+        --container-name drift-detector \
+        --cpu 200m --memory 256Mi \
+        --change-desc "US variant: higher traffic expected" 2>/dev/null || true
+    elif [ "$region" == "eu" ]; then
+      # EU variant: GDPR compliance settings
+      cub unit edit drift-detector-deployment --space $project-$region-prod \
+        --patch '{"spec":{"template":{"metadata":{"labels":{"compliance":"gdpr"}}}}}' \
+        --change-desc "EU variant: GDPR compliance" 2>/dev/null || true
+    elif [ "$region" == "asia" ]; then
+      # Asia variant: different node selector
+      cub unit edit drift-detector-deployment --space $project-$region-prod \
+        --patch '{"spec":{"template":{"spec":{"nodeSelector":{"zone":"asia-east1"}}}}}' \
+        --change-desc "Asia variant: region-specific nodes" 2>/dev/null || true
+    fi
+  done
+
+  echo "✅ Regional variants created with custom configurations!"
+fi
+
+echo "✅ Environment hierarchy created!"
+echo ""
+echo "View the hierarchy:"
+echo "  cub unit tree --node=space --filter $project --space '*'"
+echo ""
+echo "View units in dev:"
+echo "  cub unit list --space $project-dev"
+echo ""
+echo "To promote changes through environments:"
+echo "  bin/promote dev staging    # Promote from dev to staging"
+echo "  bin/promote staging prod   # Promote from staging to prod"
