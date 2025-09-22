@@ -5,20 +5,24 @@
 
 set -e
 
-# Get or create project prefix
+# Check if project already exists
 if [ -e ".cub-project" ]; then
-  project=$(cat .cub-project)
-  echo "Using existing project: $project"
-else
-  if [ -z "$1" ]; then
-    # Generate a new space prefix that is not in use
-    project="drift-detector-$(date +%s)"
-    echo "Generated project name: $project"
-  else
-    project=$1
-  fi
-  echo $project > .cub-project
+  echo "Clean up previous usage with bin/cleanup or delete the .cub-project file to continue"
+  exit 1
 fi
+
+# Generate or use provided project prefix
+if [ -z "$1" ]; then
+  # Generate a new unique prefix using ConfigHub (like "chubby-paws")
+  prefix=$(cub space new-prefix)
+  project="${prefix}-drift-detector"
+  echo "Generated project name: $project"
+else
+  project=$1
+fi
+
+# Save the project name for future use
+echo $project > .cub-project
 
 echo "🚀 Setting up ConfigHub spaces and units for drift-detector..."
 
