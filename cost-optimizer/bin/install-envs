@@ -1,0 +1,122 @@
+#!/bin/bash
+
+# Set up environment hierarchy following global-app pattern
+# Creates dev → staging → prod hierarchy with upstream/downstream relationships
+
+set -e
+
+if [ ! -e ".cub-project" ]; then
+  echo "Run bin/install-base first to create the base configuration"
+  exit 1
+fi
+
+project=$(cat .cub-project)
+
+echo "📦 Setting up environment hierarchy for $project..."
+
+# Function to clone units from upstream
+clone_env_units() {
+  local from_space=$1
+  local to_space=$2
+  local env_name=$3
+
+  echo "  Cloning units from $from_space to $to_space..."
+
+  # Clone each unit with upstream relationship
+  for unit in namespace cost-optimizer-rbac cost-optimizer-deployment cost-optimizer-service cost-optimizer-config; do
+    echo "    Cloning $unit..."
+    cub unit create $unit \
+      --space $to_space \
+      --upstream-unit $unit \
+      --upstream-space $from_space \
+      --label environment=$env_name || true
+  done
+}
+
+# Create dev environment space
+echo "Creating dev environment..."
+cub space create $project-dev \
+  --label project=$project \
+  --label environment=dev \
+  --upstream-space $project-base || true
+
+clone_env_units $project-base $project-dev dev
+
+# Create staging environment space (downstream from dev)
+echo "Creating staging environment..."
+cub space create $project-staging \
+  --label project=$project \
+  --label environment=staging \
+  --upstream-space $project-dev || true
+
+clone_env_units $project-dev $project-staging staging
+
+# Create prod environment space (downstream from staging)
+echo "Creating prod environment..."
+cub space create $project-prod \
+  --label project=$project \
+  --label environment=prod \
+  --upstream-space $project-staging || true
+
+clone_env_units $project-staging $project-prod prod
+
+# Optional: Create analysis environments for different cost scenarios
+if [ "$1" == "--with-analysis-envs" ]; then
+  echo "Creating analysis environments..."
+
+  # Cost analysis environment for testing optimization scenarios
+  cub space create $project-cost-analysis \
+    --label project=$project \
+    --label environment=analysis \
+    --label type=cost-testing \
+    --upstream-space $project-dev || true
+
+  clone_env_units $project-dev $project-cost-analysis cost-analysis
+
+  # Create cost optimization variants with direct editing
+  echo "  Creating cost optimization variants..."
+
+  # Optimized deployment variant (reduced resources)
+  echo '{
+    "spec": {
+      "template": {
+        "spec": {
+          "containers": [{
+            "name": "cost-optimizer",
+            "resources": {
+              "requests": {
+                "cpu": "100m",
+                "memory": "128Mi"
+              },
+              "limits": {
+                "cpu": "200m",
+                "memory": "256Mi"
+              }
+            }
+          }]
+        }
+      }
+    }
+  }' | cub unit update cost-optimizer-deployment --space $project-cost-analysis \
+    --patch --from-stdin --change-desc "Optimized variant: reduced resources for cost testing" 2>/dev/null || true
+
+  echo "✅ Cost analysis environment created with optimized variants!"
+fi
+
+echo ""
+echo "✅ Environment hierarchy created!"
+echo ""
+echo "View the hierarchy:"
+echo "  cub unit tree --node=space --filter $project --space '*'"
+echo ""
+echo "View units in dev:"
+echo "  cub unit list --space $project-dev"
+echo ""
+echo "To promote changes through environments:"
+echo "  bin/promote dev staging    # Promote from dev to staging"
+echo "  bin/promote staging prod   # Promote from staging to prod"
+echo ""
+echo "Deploy to environments:"
+echo "  bin/apply-all dev          # Deploy cost-optimizer to dev"
+echo "  bin/apply-all staging      # Deploy to staging"
+echo "  bin/apply-all prod         # Deploy to production"

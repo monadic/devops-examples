@@ -1,0 +1,60 @@
+#!/bin/bash
+
+# Promote cost-optimizer changes between environments using ConfigHub push-upgrade
+
+set -e
+
+if [ ! -e ".cub-project" ]; then
+  echo "Run bin/install-base first to create the base configuration"
+  exit 1
+fi
+
+project=$(cat .cub-project)
+from=$1
+to=$2
+
+if [ -z "$from" ] || [ -z "$to" ]; then
+  echo "Usage: bin/promote <from-env> <to-env>"
+  echo ""
+  echo "Examples:"
+  echo "  bin/promote dev staging      # Promote from dev to staging"
+  echo "  bin/promote staging prod     # Promote from staging to prod"
+  echo ""
+  echo "Available environments:"
+  echo "  dev → staging → prod"
+  exit 1
+fi
+
+from_space=$project-$from
+to_space=$project-$to
+
+echo "🔄 Promoting cost-optimizer from $from to $to..."
+echo "From: $from_space"
+echo "To:   $to_space"
+echo ""
+
+# Verify spaces exist
+echo "Verifying spaces exist..."
+cub space get $from_space > /dev/null || { echo "❌ Source space $from_space does not exist"; exit 1; }
+cub space get $to_space > /dev/null || { echo "❌ Target space $to_space does not exist"; exit 1; }
+
+# Use push-upgrade pattern to promote changes
+echo "Promoting changes using push-upgrade pattern..."
+cub bulk patch \
+  --space $to_space \
+  --where "UpstreamSpaceID = '$from_space'" \
+  --upgrade true \
+  --dry-run false
+
+echo ""
+echo "✅ Promotion complete!"
+echo ""
+echo "Verify promotion results:"
+echo "  cub unit list --space $to_space --show-status"
+echo "  cub unit diff --space $from_space --compare-space $to_space"
+echo ""
+echo "Apply promoted changes to Kubernetes:"
+echo "  bin/apply-all $to"
+echo ""
+echo "Check what changed:"
+echo "  kubectl get events -n devops-apps --sort-by='.lastTimestamp'"

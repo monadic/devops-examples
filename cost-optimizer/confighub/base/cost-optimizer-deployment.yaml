@@ -1,0 +1,80 @@
+apiVersion: apps/v1
+kind: Deployment
+metadata:
+  name: cost-optimizer
+  namespace: devops-apps
+  labels:
+    app: cost-optimizer
+    tier: critical
+    type: devops-app
+spec:
+  replicas: 1
+  selector:
+    matchLabels:
+      app: cost-optimizer
+  template:
+    metadata:
+      labels:
+        app: cost-optimizer
+        tier: critical
+    spec:
+      serviceAccountName: cost-optimizer
+      containers:
+      - name: cost-optimizer
+        image: ghcr.io/monadic/cost-optimizer:latest
+        ports:
+        - name: health
+          containerPort: 8080
+          protocol: TCP
+        - name: dashboard
+          containerPort: 8081
+          protocol: TCP
+        env:
+        - name: CLAUDE_API_KEY
+          valueFrom:
+            secretKeyRef:
+              name: cost-optimizer-secrets
+              key: claude-api-key
+              optional: true
+        - name: CUB_TOKEN
+          valueFrom:
+            secretKeyRef:
+              name: cost-optimizer-secrets
+              key: cub-token
+              optional: true
+        - name: CUB_API_URL
+          value: "https://api.confighub.com/v1"
+        - name: CLAUDE_DEBUG_LOG
+          value: "false"
+        - name: AUTO_APPLY_OPTIMIZATIONS
+          value: "false"
+        - name: NAMESPACE
+          value: "devops-apps"
+        resources:
+          requests:
+            cpu: 200m
+            memory: 256Mi
+          limits:
+            cpu: 500m
+            memory: 512Mi
+        livenessProbe:
+          httpGet:
+            path: /health
+            port: health
+          initialDelaySeconds: 30
+          periodSeconds: 30
+        readinessProbe:
+          httpGet:
+            path: /health
+            port: health
+          initialDelaySeconds: 5
+          periodSeconds: 10
+        securityContext:
+          allowPrivilegeEscalation: false
+          runAsNonRoot: true
+          runAsUser: 1000
+          capabilities:
+            drop:
+            - ALL
+      securityContext:
+        fsGroup: 1000

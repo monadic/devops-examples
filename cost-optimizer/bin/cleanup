@@ -1,0 +1,41 @@
+#!/bin/bash
+
+# Clean up cost-optimizer ConfigHub resources and Kubernetes deployment
+
+set -e
+
+if [ ! -e ".cub-project" ]; then
+  echo "No .cub-project found - nothing to clean up"
+  exit 0
+fi
+
+project=$(cat .cub-project)
+
+echo "🧹 Cleaning up cost-optimizer resources..."
+echo "Project: $project"
+echo ""
+
+# Remove from Kubernetes
+echo "Removing from Kubernetes..."
+kubectl delete namespace devops-apps --ignore-not-found=true
+
+# Remove ConfigHub spaces
+echo "Removing ConfigHub spaces..."
+cub space delete $project-prod --force 2>/dev/null || true
+cub space delete $project-staging --force 2>/dev/null || true
+cub space delete $project-dev --force 2>/dev/null || true
+cub space delete $project-cost-analysis --force 2>/dev/null || true
+cub space delete $project-base --force 2>/dev/null || true
+cub space delete $project-filters --force 2>/dev/null || true
+cub space delete $project --force 2>/dev/null || true
+
+# Clean up local files
+rm -f .cub-project
+
+echo ""
+echo "✅ Cleanup complete!"
+echo ""
+echo "All cost-optimizer resources have been removed from:"
+echo "  - Kubernetes cluster"
+echo "  - ConfigHub spaces"
+echo "  - Local project file"

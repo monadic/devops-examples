@@ -1,0 +1,10 @@
+#!/bin/bash
+
+# Get the current cost-optimizer project name
+
+if [ ! -e ".cub-project" ]; then
+  echo "No project initialized. Run bin/install-base first."
+  exit 1
+fi
+
+cat .cub-project

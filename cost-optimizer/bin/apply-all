@@ -1,0 +1,60 @@
+#!/bin/bash
+
+# Apply cost-optimizer to a specific environment via ConfigHub
+# Following the global-app pattern for ConfigHub-driven deployment
+
+set -e
+
+if [ ! -e ".cub-project" ]; then
+  echo "Run bin/install-base first to create the base configuration"
+  exit 1
+fi
+
+project=$(cat .cub-project)
+env=${1:-dev}
+space=$project-$env
+
+echo "🚀 Applying cost-optimizer to $env environment..."
+echo "Space: $space"
+echo ""
+
+# Apply units in correct dependency order
+echo "Applying units in dependency order..."
+
+echo "  📦 Applying namespace..."
+cub unit apply namespace --space $space
+
+echo "  🔐 Applying RBAC..."
+cub unit apply cost-optimizer-rbac --space $space
+
+echo "  ⚙️  Applying configuration..."
+cub unit apply cost-optimizer-config --space $space
+
+echo "  🌐 Applying service..."
+cub unit apply cost-optimizer-service --space $space
+
+echo "  🚀 Applying deployment..."
+cub unit apply cost-optimizer-deployment --space $space
+
+# Alternative: Use bulk apply with filters
+echo ""
+echo "Alternatively, applying all cost-optimizer units at once..."
+cub bulk apply --space $space --where "Labels.app = 'cost-optimizer'" || true
+
+echo ""
+echo "✅ Deployment complete!"
+echo ""
+echo "Verify deployment:"
+echo "  kubectl get pods -n devops-apps -l app=cost-optimizer"
+echo "  kubectl get services -n devops-apps -l app=cost-optimizer"
+echo ""
+echo "Access the cost optimizer:"
+echo "  Dashboard: kubectl port-forward svc/cost-optimizer-dashboard 8081:8081 -n devops-apps"
+echo "  Health:    kubectl port-forward svc/cost-optimizer-dashboard 8080:8080 -n devops-apps"
+echo "  Then visit: http://localhost:8081"
+echo ""
+echo "View logs:"
+echo "  kubectl logs -f deployment/cost-optimizer -n devops-apps"
+echo ""
+echo "Check ConfigHub units:"
+echo "  cub unit list --space $space --show-status"

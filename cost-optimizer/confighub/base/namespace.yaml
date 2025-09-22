@@ -1,0 +1,8 @@
+apiVersion: v1
+kind: Namespace
+metadata:
+  name: devops-apps
+  labels:
+    managed-by: confighub
+    app: cost-optimizer
+    type: devops-namespace

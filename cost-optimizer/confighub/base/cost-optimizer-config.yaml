@@ -1,0 +1,40 @@
+apiVersion: v1
+kind: ConfigMap
+metadata:
+  name: cost-optimizer-config
+  namespace: devops-apps
+  labels:
+    app: cost-optimizer
+data:
+  config.yaml: |
+    cost_optimizer:
+      # Cost calculation settings
+      pricing:
+        cpu_per_hour: 0.0416  # $0.0416 per vCPU hour
+        memory_per_gb_hour: 0.00456  # $0.00456 per GB hour
+        storage_per_gb_month: 0.10  # $0.10 per GB month
+        network_per_gb: 0.09  # $0.09 per GB transfer
+
+      # Analysis settings
+      analysis:
+        min_utilization_threshold: 50  # % - flag resources below this
+        high_cost_threshold: 100  # $ - flag resources above this per month
+        savings_threshold: 20  # $ - only recommend changes saving more than this
+
+      # Auto-apply settings (disabled by default for safety)
+      auto_apply:
+        enabled: false
+        max_savings_per_change: 50  # Maximum $ savings to apply automatically
+        allowed_types: ["rightsize"]  # Only allow resource rightsizing
+        require_low_risk: true
+
+      # Dashboard settings
+      dashboard:
+        refresh_interval: 30  # seconds
+        show_debug_info: false
+
+      # ConfigHub integration
+      confighub:
+        create_recommendations: true
+        store_analysis_history: true
+        use_sets_for_grouping: true

@@ -1,0 +1,79 @@
+#!/bin/bash
+
+# Set up cost-optimizer base configuration in ConfigHub
+# Following the global-app pattern for ConfigHub deployment
+
+set -e
+
+if [ -e ".cub-project" ]; then
+  echo "Clean up previous usage with bin/cleanup or delete .cub-project"
+  exit 1
+fi
+
+# Generate unique prefix using ConfigHub
+if [ -z "$1" ]; then
+  prefix=$(cub space new-prefix)  # Returns like "efficient-whale"
+  project="${prefix}-cost-optimizer"    # Result: "efficient-whale-cost-optimizer"
+else
+  project=$1
+fi
+
+echo $project > .cub-project
+
+echo "📦 Setting up cost-optimizer in ConfigHub..."
+echo "Project: $project"
+echo ""
+
+# Create main spaces following global-app hierarchy
+echo "Creating spaces..."
+cub space create $project --label app=cost-optimizer --label type=devops-app
+cub space create $project-base --label base=true --label project=$project
+cub space create $project-filters --label type=filters --label project=$project
+
+# Create filters for cost analysis
+echo "Creating filters..."
+cub filter create all Unit --where-field "Space.Labels.project = '$project'" --space $project-filters
+cub filter create high-cost Unit --where-field "Labels.monthly_cost > '100'" --space $project-filters
+cub filter create critical-recommendations Unit --where-field "Labels.priority = 'high'" --space $project-filters
+cub filter create low-utilization Unit --where-field "Labels.cpu_utilization < '50' AND Labels.memory_utilization < '50'" --space $project-filters
+
+# Create sets for organizing cost data
+echo "Creating sets..."
+cub set create critical-costs --space $project --label priority=high --label type=cost-optimization
+cub set create cost-recommendations --space $project --label type=recommendations
+cub set create cost-analysis-history --space $project --label type=analysis
+
+# Create base configuration units
+echo "Creating base units..."
+
+# Cost optimizer deployment
+cub unit create cost-optimizer-deployment confighub/base/cost-optimizer-deployment.yaml --space $project-base \
+  --label app=cost-optimizer --label tier=critical --label type=devops-app
+
+# Service for dashboard
+cub unit create cost-optimizer-service confighub/base/cost-optimizer-service.yaml --space $project-base \
+  --label app=cost-optimizer --label tier=critical --label type=service
+
+# RBAC for cluster access
+cub unit create cost-optimizer-rbac confighub/base/cost-optimizer-rbac.yaml --space $project-base \
+  --label app=cost-optimizer --label tier=critical --label type=rbac
+
+# Namespace
+cub unit create namespace confighub/base/namespace.yaml --space $project-base \
+  --label tier=critical --label type=infrastructure
+
+# ConfigMap for configuration
+cub unit create cost-optimizer-config confighub/base/cost-optimizer-config.yaml --space $project-base \
+  --label app=cost-optimizer --label type=config
+
+echo ""
+echo "✅ Base setup complete!"
+echo ""
+echo "Next steps:"
+echo "  bin/install-envs          # Create environment hierarchy"
+echo "  bin/apply-all dev         # Deploy to dev environment"
+echo ""
+echo "View in ConfigHub:"
+echo "  cub unit list --space $project-base"
+echo "  cub filter list --space $project-filters"
+echo "  cub set list --space $project"

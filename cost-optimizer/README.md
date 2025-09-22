@@ -1,177 +1,234 @@
 # Cost Optimizer
 
-A Kubernetes cost optimization application that analyzes resource usage and recommends cost-saving opportunities.
+AI-powered Kubernetes cost optimization using ConfigHub and our enhanced DevOps SDK.
 
-## How It Works
+## Overview
 
-This is a **persistent DevOps application** (like global-app), not a workflow:
-
-1. **Continuous Monitoring**: Runs every hour to analyze costs
-2. **Resource Collection**: Gathers data on all deployments, statefulsets, and storage
-3. **Metrics Analysis**: Compares actual usage (from metrics-server) with requested resources
-4. **Claude AI Analysis**: Uses Claude to identify optimization opportunities
-5. **Recommendations**: Provides specific actions to reduce costs
-6. **ConfigHub Integration**: Can create optimization spaces for gradual rollout
+The Cost Optimizer is a DevOps application that:
+- **Analyzes** Kubernetes resource usage across your cluster
+- **Uses Claude AI** to generate intelligent cost optimization recommendations
+- **Stores analysis** in ConfigHub for tracking and collaboration
+- **Provides a web dashboard** for visualization and monitoring
+- **Follows the global-app pattern** for ConfigHub-driven deployment
 
 ## Architecture
 
+### Built with Enhanced DevOps SDK
+- **Event-driven processing** using `RunWithInformers()`
+- **Comprehensive Claude logging** with timestamped request/response tracking
+- **Real ConfigHub integration** with space/set/filter management
+- **High-level convenience helpers** for common operations
+
+### ConfigHub Integration
+- **Unique space naming** using `cub space new-prefix`
+- **Sets for grouping** critical cost items
+- **Filters for querying** high-cost resources and recommendations
+- **Push-upgrade pattern** for promoting optimizations across environments
+
+### AI-Powered Analysis
+- **Claude AI integration** for intelligent recommendations
+- **Risk assessment** for each suggested change
+- **ConfigHub action mapping** for implementation
+- **Automatic application** of low-risk optimizations (optional)
+
+## Quick Start
+
+### Demo Mode
+```bash
+# See the cost optimizer in action with mock data
+./cost-optimizer demo
 ```
-┌─────────────┐     ┌─────────────┐     ┌─────────────┐
-│ Kubernetes  │────▶│   Cost      │────▶│   Claude    │
-│   Cluster   │     │ Optimizer   │     │     API     │
-└─────────────┘     └──────┬──────┘     └─────────────┘
-                           │
-                           ▼
-                    ┌─────────────┐
-                    │  ConfigHub  │
-                    │   (Fixes)   │
-                    └─────────────┘
+
+### Real Deployment with ConfigHub
+
+1. **Setup ConfigHub credentials**:
+```bash
+export CUB_TOKEN="your-confighub-token"
+export CUB_API_URL="https://api.confighub.com/v1"
+```
+
+2. **Create ConfigHub structure**:
+```bash
+bin/install-base          # Create base configuration
+bin/install-envs          # Set up dev → staging → prod hierarchy
+```
+
+3. **Deploy to Kubernetes**:
+```bash
+bin/apply-all dev         # Deploy to dev environment
+```
+
+4. **Access the dashboard**:
+```bash
+kubectl port-forward svc/cost-optimizer-dashboard 8081:8081 -n devops-apps
+# Visit: http://localhost:8081
 ```
 
 ## Features
 
-### Resource Analysis
-- **CPU**: Compares requested vs actual usage
-- **Memory**: Identifies over-provisioned memory
-- **Storage**: Finds unused or oversized volumes
-- **Replicas**: Suggests optimal replica counts
+### 🔍 Cost Analysis
+- **Resource utilization analysis** across all deployments
+- **Monthly cost estimation** based on CPU, memory, storage usage
+- **Utilization thresholds** to identify over-provisioned resources
+- **Cluster-wide summary** statistics
 
-### Cost Calculation
-- Simple pricing model ($25/vCPU, $3/GB RAM, $0.10/GB storage)
-- Configurable cloud provider pricing
-- Monthly cost projections
+### 🤖 AI Recommendations
+- **Claude AI-powered analysis** with intelligent suggestions
+- **Risk-based categorization** (low/medium/high)
+- **Priority scoring** for maximum impact
+- **Implementation guidance** for each recommendation
 
-### Optimization Types
-1. **Rightsizing**: Reduce resource requests to match actual usage
-2. **Scaling**: Optimize replica counts
-3. **Removal**: Identify idle resources
-4. **Reserved Instances**: Suggest commitment discounts
+### 📊 Web Dashboard
+- **Real-time cost visualization** with auto-refresh
+- **Interactive recommendations** with savings estimates
+- **Resource breakdown** by compute, memory, storage, network
+- **Cluster health metrics** and utilization trends
 
-## Running Locally
-
-```bash
-# Set environment variables
-export KUBECONFIG=/path/to/kubeconfig
-export CLAUDE_API_KEY=your-claude-key
-export NAMESPACE=qa  # Namespace to analyze
-
-# Build and run
-go build
-./cost-optimizer
-```
-
-## Sample Output
-
-```
-2025/09/21 17:00:00 Cost optimizer started
-2025/09/21 17:00:00 Analyzing costs...
-2025/09/21 17:00:00 Collected data for 15 resources
-2025/09/21 17:00:00 Current monthly cost: $1,234.56
-2025/09/21 17:00:01 === COST OPTIMIZATION REPORT ===
-2025/09/21 17:00:01 Current Monthly Cost: $1,234.56
-2025/09/21 17:00:01 Potential Savings: $456.78 (37.0%)
-2025/09/21 17:00:01 Found 5 optimization opportunities:
-2025/09/21 17:00:01   backend (rightsize):
-2025/09/21 17:00:01     Savings: $125.00/month
-2025/09/21 17:00:01     Risk: low
-2025/09/21 17:00:01     Action: Reduce CPU from 1000m to 400m based on usage
-2025/09/21 17:00:01   frontend (scale):
-2025/09/21 17:00:01     Savings: $85.50/month
-2025/09/21 17:00:01     Risk: medium
-2025/09/21 17:00:01     Action: Reduce replicas from 5 to 3
-```
-
-## Deployment to Kubernetes
-
-```bash
-# Create namespace and secrets
-kubectl create namespace devops-apps
-kubectl create secret generic cost-optimizer-secrets \
-  --from-literal=cub-token=$CUB_TOKEN \
-  --from-literal=claude-api-key=$CLAUDE_API_KEY \
-  -n devops-apps
-
-# Deploy
-kubectl apply -f k8s/deployment.yaml
-
-# Check logs
-kubectl logs -f deployment/cost-optimizer -n devops-apps
-```
+### ⚙️ ConfigHub Management
+- **Automatic space creation** with unique prefixes
+- **Cost analysis storage** for historical tracking
+- **High-priority recommendations** in dedicated Sets
+- **Filter-based querying** for targeted operations
 
 ## Configuration
 
-| Environment Variable | Description | Default |
-|---------------------|-------------|---------|
-| `NAMESPACE` | Namespace to analyze | `default` |
-| `CUB_SPACE` | ConfigHub space for optimizations | `acorn-bear-qa` |
-| `CLAUDE_API_KEY` | Claude API key for AI analysis | Required |
-| `AUTO_OPTIMIZE` | Automatically apply optimizations | `false` |
+### Environment Variables
+```bash
+# Claude AI (optional - falls back to basic analysis)
+CLAUDE_API_KEY="your-claude-api-key"
+CLAUDE_DEBUG_LOG="true"              # Enable full request/response logging
 
-## How This Differs from Workflows
+# ConfigHub (optional - runs in local mode without)
+CUB_TOKEN="your-confighub-token"
+CUB_API_URL="https://api.confighub.com/v1"
 
-### This Cost Optimizer (DevOps App)
-- **Persistent**: Runs continuously as a Deployment
-- **Stateful**: Tracks costs over time
-- **Learning**: Can improve recommendations based on history
-- **Integrated**: Direct Kubernetes API access
-- **Versioned**: Can be rolled back like any app
-
-### Workflow Approach (e.g., Cased)
-- **Triggered**: Runs on schedule or event
-- **Stateless**: No memory between runs
-- **Simple**: Pre-built analysis
-- **Limited**: Can't access metrics directly
-- **Not versioned**: Workflow config, not an app
-
-## Integration with ConfigHub
-
-When optimizations are found, the app can:
-
-1. Create a new ConfigHub space (e.g., `qa-cost-opt-123456`)
-2. Apply recommended changes to units in that space
-3. Test in isolation before promoting
-4. Gradually roll out using ConfigHub's promotion model
-
-Example:
-```
-acorn-bear-qa (current)
-    └── acorn-bear-qa-cost-opt-123456 (optimization)
-            ├── backend (reduced CPU/memory)
-            ├── frontend (reduced replicas)
-            └── postgres (optimized storage)
+# Cost Optimizer Settings
+AUTO_APPLY_OPTIMIZATIONS="false"     # Auto-apply low-risk changes
+NAMESPACE="devops-apps"              # Target namespace
 ```
 
-## Claude Integration
+### Cost Calculation Settings
+The optimizer uses realistic cloud pricing:
+- **CPU**: $0.0416 per vCPU hour
+- **Memory**: $0.00456 per GB hour
+- **Storage**: $0.10 per GB month
+- **Network**: $0.09 per GB transfer
 
-Claude analyzes the resource data and provides:
-- Intelligent recommendations beyond simple heuristics
-- Risk assessment for each optimization
-- Explanation of why each change makes sense
-- Consideration of workload patterns
+## Deployment Patterns
 
-The Claude prompt includes:
-- Current resource allocations
-- Actual usage metrics
-- Cost calculations
-- Optimization goals
+### Development
+```bash
+# Quick local development
+export CLAUDE_DEBUG_LOG=true
+./cost-optimizer
+```
 
-## Future Enhancements
+### ConfigHub-Driven (Recommended)
+```bash
+# Full ConfigHub deployment following global-app pattern
+bin/install-base
+bin/install-envs
+bin/apply-all dev
 
-1. **Historical Analysis**: Track usage patterns over time
-2. **Predictive Scaling**: Anticipate load changes
-3. **Multi-Cloud**: Support AWS, GCP, Azure pricing
-4. **Spot Instances**: Recommend spot/preemptible instances
-5. **Network Costs**: Analyze data transfer costs
-6. **Automated Rollout**: Gradual application of optimizations
-7. **Prometheus Integration**: Richer metrics
-8. **Slack Notifications**: Alert on savings opportunities
+# Promote through environments
+bin/promote dev staging
+bin/apply-all staging
 
-## Why This Architecture?
+bin/promote staging prod
+bin/apply-all prod
+```
 
-This demonstrates that cost optimization is not a one-time script or workflow, but a **continuous application** that:
-- Monitors constantly
-- Learns from patterns
-- Integrates deeply with infrastructure
-- Can be managed like any other application
+### Environment Variants
+```bash
+# Create analysis environment for testing optimizations
+bin/install-envs --with-analysis-envs
 
-Just like global-app serves business logic, cost-optimizer serves DevOps optimization logic.
+# This creates optimized variants with reduced resources
+# for testing cost savings before applying to production
+```
+
+## API Endpoints
+
+### Health & Monitoring
+- **Health**: `:8080/health` - Application health status
+- **Metrics**: `:8080/metrics` - Prometheus metrics (if enabled)
+
+### Dashboard & Data
+- **Dashboard**: `:8081/` - Interactive web dashboard
+- **Analysis API**: `:8081/api/analysis` - Full cost analysis JSON
+- **Recommendations**: `:8081/api/recommendations` - Just recommendations JSON
+
+## ConfigHub Structure
+
+### Spaces Created
+```
+{prefix}-cost-optimizer           # Main space
+├── {prefix}-cost-optimizer-base     # Base configurations
+├── {prefix}-cost-optimizer-dev      # Dev environment
+├── {prefix}-cost-optimizer-staging  # Staging environment
+├── {prefix}-cost-optimizer-prod     # Production environment
+└── {prefix}-cost-optimizer-filters  # Filters for querying
+```
+
+### Sets for Organization
+- **critical-costs**: High-priority cost items (>$50/month savings)
+- **cost-recommendations**: All optimization suggestions
+- **cost-analysis-history**: Historical analysis data
+
+### Filters for Querying
+- **all**: All project units
+- **high-cost**: Resources >$100/month
+- **critical-recommendations**: High priority recommendations
+- **low-utilization**: Resources <50% CPU and memory utilization
+
+## Example Cost Analysis
+
+```json
+{
+  "timestamp": "2024-01-15T14:30:00Z",
+  "total_monthly_cost": 1245.67,
+  "potential_savings": 287.45,
+  "savings_percentage": 23.1,
+  "recommendations": [
+    {
+      "resource": "deployment/frontend-web",
+      "namespace": "production",
+      "type": "rightsize",
+      "priority": "high",
+      "monthly_savings": 73.65,
+      "risk": "low",
+      "explanation": "Only using 30% of allocated CPU and memory",
+      "confighub_action": "Update deployment unit with new resource limits"
+    }
+  ],
+  "cluster_summary": {
+    "total_nodes": 3,
+    "total_pods": 24,
+    "avg_cpu_utilization": 42.5,
+    "avg_memory_utilization": 38.7
+  }
+}
+```
+
+## Integration Examples
+
+### With CI/CD
+```yaml
+# In your CI pipeline
+- name: Cost Analysis
+  run: |
+    ./cost-optimizer demo > cost-analysis.json
+    # Upload to artifact storage or send to Slack
+```
+
+### With Monitoring
+```yaml
+# Prometheus scraping config
+- job_name: 'cost-optimizer'
+  static_configs:
+  - targets: ['cost-optimizer-health.devops-apps.svc.cluster.local:8080']
+```
+
+---
+
+**Built with the enhanced DevOps SDK** • **Follows the global-app pattern** • **AI-powered by Claude**
