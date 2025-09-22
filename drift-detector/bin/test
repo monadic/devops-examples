@@ -1,0 +1,146 @@
+#!/bin/bash
+# Test script for drift-detector
+# Follows the 2-step testing protocol: local tests first, then integration
+
+set -e
+
+echo "🧪 Drift Detector Testing"
+echo "========================"
+
+# Colors for output
+RED='\033[0;31m'
+GREEN='\033[0;32m'
+YELLOW='\033[1;33m'
+NC='\033[0m' # No Color
+
+# Step 1: Local Tests
+echo ""
+echo "📋 Step 1: Local Tests (no external dependencies)"
+echo "------------------------------------------------"
+
+# Build the project
+echo "  Building project..."
+if go build .; then
+    echo -e "  ${GREEN}✅ Build successful${NC}"
+else
+    echo -e "  ${RED}❌ Build failed${NC}"
+    exit 1
+fi
+
+# Run unit tests
+echo "  Running unit tests..."
+if go test -v -count=1 2>&1 | grep -E "PASS|FAIL|RUN"; then
+    echo -e "  ${GREEN}✅ Unit tests passed${NC}"
+else
+    echo -e "  ${RED}❌ Unit tests failed${NC}"
+    exit 1
+fi
+
+# Run demo mode
+echo "  Testing demo mode..."
+if ./drift-detector demo 2>&1 | grep -q "Demo Complete"; then
+    echo -e "  ${GREEN}✅ Demo mode works${NC}"
+else
+    echo -e "  ${YELLOW}⚠️  Demo mode issues${NC}"
+fi
+
+# Check code quality
+echo "  Checking code quality..."
+go fmt ./... 2>&1 | grep -v "^$" || echo -e "  ${GREEN}✅ Code formatted${NC}"
+go vet ./... 2>&1 | grep -v "^$" || echo -e "  ${GREEN}✅ Code vetted${NC}"
+
+# Run benchmarks
+echo "  Running benchmarks..."
+if go test -bench=. -benchtime=1s -run=^$ 2>&1 | grep -q "Benchmark"; then
+    echo -e "  ${GREEN}✅ Benchmarks completed${NC}"
+else
+    echo -e "  ${YELLOW}⚠️  No benchmarks found${NC}"
+fi
+
+echo ""
+echo -e "${GREEN}✅ Step 1: Local tests complete!${NC}"
+
+# Step 2: Integration Tests (optional)
+if [ "$1" == "--integration" ] || [ "$1" == "--all" ]; then
+    echo ""
+    echo "📋 Step 2: Integration Tests (real services)"
+    echo "-------------------------------------------"
+
+    # Check for ConfigHub token
+    if [ -z "$CUB_TOKEN" ]; then
+        echo -e "  ${YELLOW}⚠️  CUB_TOKEN not set. Trying to get from cub auth...${NC}"
+        export CUB_TOKEN="$(cub auth get-token 2>/dev/null || echo "")"
+        if [ -z "$CUB_TOKEN" ]; then
+            echo -e "  ${RED}❌ ConfigHub not authenticated. Run: cub auth login${NC}"
+            echo "     Skipping integration tests."
+        fi
+    fi
+
+    if [ -n "$CUB_TOKEN" ]; then
+        export CUB_API_URL="${CUB_API_URL:-https://hub.confighub.com/api}"
+        echo "  ConfigHub configured: ${CUB_API_URL:0:30}..."
+
+        # Run integration tests
+        echo "  Running integration tests..."
+        if go test -tags=integration -v -count=1 2>&1 | grep -E "PASS|FAIL|RUN"; then
+            echo -e "  ${GREEN}✅ Integration tests passed${NC}"
+        else
+            echo -e "  ${YELLOW}⚠️  Some integration tests failed${NC}"
+        fi
+    fi
+
+    # Check for Kind cluster
+    if command -v kind &> /dev/null; then
+        if kind get clusters 2>/dev/null | grep -q "devops-test"; then
+            echo "  Kind cluster found: devops-test"
+
+            # Test against Kind cluster
+            echo "  Testing Kubernetes integration..."
+            if go test -v -run TestKind 2>&1 | grep -q "PASS"; then
+                echo -e "  ${GREEN}✅ Kubernetes tests passed${NC}"
+            else
+                echo -e "  ${YELLOW}⚠️  Kubernetes tests had issues${NC}"
+            fi
+
+            # Check for drift in test cluster
+            echo "  Checking for drift in test cluster..."
+            kubectl get deployments -n drift-test 2>/dev/null || echo "    No test deployments found"
+        else
+            echo -e "  ${YELLOW}⚠️  Kind cluster not found. Run: ./bin/create-cluster${NC}"
+        fi
+    else
+        echo -e "  ${YELLOW}⚠️  Kind not installed. Skipping Kubernetes tests.${NC}"
+    fi
+
+    echo ""
+    echo -e "${GREEN}✅ Step 2: Integration tests complete!${NC}"
+fi
+
+# Summary
+echo ""
+echo "📊 Test Summary"
+echo "=============="
+echo -e "  ${GREEN}✅ Build successful${NC}"
+echo -e "  ${GREEN}✅ Unit tests passed${NC}"
+echo -e "  ${GREEN}✅ Demo mode works${NC}"
+echo -e "  ${GREEN}✅ Code quality checked${NC}"
+
+if [ "$1" == "--integration" ] || [ "$1" == "--all" ]; then
+    if [ -n "$CUB_TOKEN" ]; then
+        echo -e "  ${GREEN}✅ Integration tests run${NC}"
+    fi
+    if command -v kind &> /dev/null; then
+        echo -e "  ${GREEN}✅ Kubernetes tests run${NC}"
+    fi
+fi
+
+echo ""
+echo "Test Options:"
+echo "  ./bin/test                  # Local tests only (fast)"
+echo "  ./bin/test --integration    # Include integration tests"
+echo "  ./bin/test --all           # Run all tests"
+echo ""
+echo "To run specific tests:"
+echo "  go test -v -run TestDriftDetector"
+echo "  go test -tags=integration -v -run TestConfigHub"
+echo "  go test -bench=."

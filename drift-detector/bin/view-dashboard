@@ -1,0 +1,89 @@
+#!/bin/bash
+# Open ConfigHub and the drift detector dashboard
+
+echo "🌐 Opening Drift Detector Dashboard"
+echo "==================================="
+echo ""
+
+# Get the project name if it exists
+if [ -f ".drift-detector-project" ]; then
+    PROJECT=$(cat .drift-detector-project)
+    echo "Project: $PROJECT"
+    echo ""
+fi
+
+# Show ConfigHub CLI info
+echo "📊 ConfigHub Status:"
+echo "-------------------"
+
+# Show spaces
+echo "Spaces:"
+cub space list | grep drift-detector | head -5
+
+echo ""
+echo "Sets:"
+if [ -n "$PROJECT" ]; then
+    cub set list --space $PROJECT 2>/dev/null | head -5 || echo "  No sets found"
+fi
+
+echo ""
+echo "Filters:"
+if [ -n "$PROJECT" ]; then
+    cub filter list --space $PROJECT-filters 2>/dev/null | head -5 || echo "  No filters found"
+fi
+
+echo ""
+echo "🌐 Opening in Browser:"
+echo "--------------------"
+
+# Open ConfigHub web UI
+echo "1. ConfigHub Web UI:"
+echo "   https://hub.confighub.com"
+if [ -n "$PROJECT" ]; then
+    echo "   Navigate to: Spaces → $PROJECT"
+fi
+
+# Check if running on macOS
+if [[ "$OSTYPE" == "darwin"* ]]; then
+    open "https://hub.confighub.com" 2>/dev/null || true
+fi
+
+# Open local dashboard
+echo ""
+echo "2. Local Dashboard:"
+DASHBOARD_PATH="$(pwd)/dashboard.html"
+if [ -f "$DASHBOARD_PATH" ]; then
+    echo "   file://$DASHBOARD_PATH"
+
+    if [[ "$OSTYPE" == "darwin"* ]]; then
+        open "$DASHBOARD_PATH" 2>/dev/null || true
+    elif [[ "$OSTYPE" == "linux-gnu"* ]]; then
+        xdg-open "$DASHBOARD_PATH" 2>/dev/null || true
+    fi
+else
+    echo "   Dashboard not found. Creating..."
+    echo "   Run this script again to open."
+fi
+
+echo ""
+echo "📍 Navigation Tips:"
+echo "-----------------"
+echo "In ConfigHub Web UI:"
+echo "  1. Click 'Spaces' in the top menu"
+echo "  2. Search for 'drift-detector'"
+echo "  3. Click on your space to see units"
+echo "  4. Click 'Sets' to see critical-services set"
+echo "  5. Click 'Filters' to see WHERE clauses"
+echo ""
+echo "In Local Dashboard:"
+echo "  - View real-time drift status"
+echo "  - Click 'Fix Drift' to simulate fixes"
+echo "  - Watch the logs for activity"
+echo ""
+
+# Show current Kubernetes drift status
+if command -v kubectl &> /dev/null; then
+    echo "🚨 Current Drift Status:"
+    echo "----------------------"
+    kubectl get deployments -n drift-test 2>/dev/null | grep -E "NAME|backend|frontend" || echo "  No test deployments found"
+fi

@@ -1,0 +1,173 @@
+#!/bin/bash
+# Interactive demo script for drift-detector
+# Shows the full workflow without needing real infrastructure
+
+set -e
+
+# Colors for output
+RED='\033[0;31m'
+GREEN='\033[0;32m'
+BLUE='\033[0;34m'
+YELLOW='\033[1;33m'
+CYAN='\033[0;36m'
+NC='\033[0m' # No Color
+
+clear
+
+echo -e "${BLUE}━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━${NC}"
+echo -e "${CYAN}     🚀 Drift Detector - Interactive Demo 🚀${NC}"
+echo -e "${BLUE}━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━${NC}"
+echo ""
+echo "This demo shows how the Drift Detector works without"
+echo "requiring real ConfigHub or Kubernetes infrastructure."
+echo ""
+echo -e "${YELLOW}Press Enter to continue...${NC}"
+read
+
+clear
+
+echo -e "${BLUE}━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━${NC}"
+echo -e "${CYAN}📋 Step 1: The Problem - Configuration Drift${NC}"
+echo -e "${BLUE}━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━${NC}"
+echo ""
+echo "Configuration drift happens when:"
+echo "  • Someone manually scales a deployment"
+echo "  • A hotfix is applied directly to production"
+echo "  • Auto-scaling changes replica counts"
+echo "  • Emergency changes bypass normal processes"
+echo ""
+echo "Example drift:"
+echo -e "${RED}  ⚠️  backend-api: Running 10 replicas (expected: 3)${NC}"
+echo -e "${RED}  ⚠️  frontend-web: Running 1 replica (expected: 2)${NC}"
+echo ""
+echo -e "${YELLOW}Press Enter to see the solution...${NC}"
+read
+
+clear
+
+echo -e "${BLUE}━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━${NC}"
+echo -e "${CYAN}🔧 Step 2: The Solution - DevOps as Apps${NC}"
+echo -e "${BLUE}━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━${NC}"
+echo ""
+echo "Instead of ephemeral workflows (like Cased.com), we build"
+echo "persistent applications that:"
+echo ""
+echo "  ✅ Run continuously (not triggered)"
+echo "  ✅ Use event-driven architecture (informers)"
+echo "  ✅ Leverage ConfigHub's real features"
+echo "  ✅ Include AI analysis (Claude)"
+echo "  ✅ Fix issues automatically"
+echo ""
+echo -e "${YELLOW}Press Enter to run the drift detector...${NC}"
+read
+
+clear
+
+echo -e "${BLUE}━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━${NC}"
+echo -e "${CYAN}🚀 Step 3: Running Drift Detector (Demo Mode)${NC}"
+echo -e "${BLUE}━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━${NC}"
+echo ""
+
+# Build if needed
+if [ ! -f "./drift-detector" ]; then
+    echo "Building drift-detector..."
+    go build .
+fi
+
+# Run demo mode with output
+./drift-detector demo 2>&1 | while IFS= read -r line; do
+    # Color code the output
+    if [[ $line == *"✅"* ]]; then
+        echo -e "${GREEN}$line${NC}"
+    elif [[ $line == *"⚠️"* ]]; then
+        echo -e "${YELLOW}$line${NC}"
+    elif [[ $line == *"❌"* ]]; then
+        echo -e "${RED}$line${NC}"
+    elif [[ $line == *"🤖"* ]]; then
+        echo -e "${CYAN}$line${NC}"
+    elif [[ $line == *"Step"* ]]; then
+        echo -e "${BLUE}$line${NC}"
+    else
+        echo "$line"
+    fi
+done
+
+echo ""
+echo -e "${YELLOW}Press Enter to see ConfigHub features used...${NC}"
+read
+
+clear
+
+echo -e "${BLUE}━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━${NC}"
+echo -e "${CYAN}📊 Step 4: ConfigHub Features Demonstrated${NC}"
+echo -e "${BLUE}━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━${NC}"
+echo ""
+echo -e "${GREEN}REAL ConfigHub Features Used:${NC}"
+echo "  ✅ Spaces - Organized configuration"
+echo "  ✅ Sets - Grouped critical services"
+echo "  ✅ Filters - Targeted resources with WHERE clauses"
+echo "  ✅ Push-upgrade - BulkPatchUnits(Upgrade: true)"
+echo "  ✅ Live State - Read deployment status"
+echo ""
+echo -e "${RED}Hallucinated Features Avoided:${NC}"
+echo "  ❌ Variants (don't exist)"
+echo "  ❌ Gates (don't exist)"
+echo "  ❌ Dependency graphs (don't exist)"
+echo "  ❌ UpdateStatus (can't update live state)"
+echo ""
+echo -e "${YELLOW}Press Enter to see deployment options...${NC}"
+read
+
+clear
+
+echo -e "${BLUE}━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━${NC}"
+echo -e "${CYAN}🌐 Step 5: Deployment Options${NC}"
+echo -e "${BLUE}━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━${NC}"
+echo ""
+echo -e "${GREEN}Development Mode:${NC}"
+echo "  ConfigHub → Kubernetes (direct)"
+echo "  • Fast feedback loops"
+echo "  • No Git intermediary"
+echo "  • Perfect for testing"
+echo ""
+echo -e "${CYAN}Enterprise Mode:${NC}"
+echo "  ConfigHub → Git → Flux/Argo → Kubernetes"
+echo "  • Full audit trail"
+echo "  • Compliance friendly"
+echo "  • Production ready"
+echo ""
+echo -e "${YELLOW}Press Enter for next steps...${NC}"
+read
+
+clear
+
+echo -e "${BLUE}━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━${NC}"
+echo -e "${CYAN}🎯 Next Steps${NC}"
+echo -e "${BLUE}━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━${NC}"
+echo ""
+echo "1. ${GREEN}Test with real ConfigHub:${NC}"
+echo "   cub auth login"
+echo "   ./bin/install"
+echo ""
+echo "2. ${GREEN}Test with Kind cluster:${NC}"
+echo "   ./bin/create-cluster"
+echo "   ./bin/deploy-test --with-drift"
+echo "   ./drift-detector"
+echo ""
+echo "3. ${GREEN}Deploy to production:${NC}"
+echo "   ./bin/deploy-prod"
+echo ""
+echo "4. ${GREEN}Build other DevOps apps:${NC}"
+echo "   • Cost Optimizer"
+echo "   • Security Scanner"
+echo "   • Compliance Auditor"
+echo "   • Upgrade Manager"
+echo ""
+echo -e "${BLUE}━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━${NC}"
+echo -e "${GREEN}✨ Demo Complete! ✨${NC}"
+echo -e "${BLUE}━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━${NC}"
+echo ""
+echo "Learn more:"
+echo "  • README.md - Full documentation"
+echo "  • docs/DEVOPS-AS-APPS-PLAN.md - Architecture"
+echo "  • https://github.com/monadic/devops-examples"

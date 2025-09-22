@@ -1,0 +1,424 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Drift Detector Dashboard</title>
+    <style>
+        * {
+            margin: 0;
+            padding: 0;
+            box-sizing: border-box;
+        }
+
+        body {
+            font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, Oxygen, Ubuntu, sans-serif;
+            background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+            min-height: 100vh;
+            padding: 20px;
+        }
+
+        .container {
+            max-width: 1400px;
+            margin: 0 auto;
+        }
+
+        .header {
+            background: white;
+            border-radius: 12px;
+            padding: 30px;
+            margin-bottom: 30px;
+            box-shadow: 0 10px 30px rgba(0,0,0,0.1);
+        }
+
+        h1 {
+            color: #2d3748;
+            font-size: 32px;
+            margin-bottom: 10px;
+            display: flex;
+            align-items: center;
+            gap: 12px;
+        }
+
+        .subtitle {
+            color: #718096;
+            font-size: 16px;
+        }
+
+        .grid {
+            display: grid;
+            grid-template-columns: repeat(auto-fit, minmax(300px, 1fr));
+            gap: 20px;
+            margin-bottom: 30px;
+        }
+
+        .card {
+            background: white;
+            border-radius: 12px;
+            padding: 20px;
+            box-shadow: 0 4px 6px rgba(0,0,0,0.07);
+            transition: transform 0.2s;
+        }
+
+        .card:hover {
+            transform: translateY(-2px);
+            box-shadow: 0 8px 12px rgba(0,0,0,0.1);
+        }
+
+        .card-title {
+            font-size: 14px;
+            color: #718096;
+            text-transform: uppercase;
+            letter-spacing: 0.5px;
+            margin-bottom: 8px;
+        }
+
+        .card-value {
+            font-size: 36px;
+            font-weight: bold;
+            color: #2d3748;
+        }
+
+        .card-status {
+            display: inline-block;
+            padding: 4px 12px;
+            border-radius: 20px;
+            font-size: 12px;
+            font-weight: 600;
+            margin-top: 8px;
+        }
+
+        .status-ok {
+            background: #c6f6d5;
+            color: #22543d;
+        }
+
+        .status-drift {
+            background: #fed7d7;
+            color: #742a2a;
+        }
+
+        .status-warning {
+            background: #feebc8;
+            color: #7c2d12;
+        }
+
+        .drift-items {
+            background: white;
+            border-radius: 12px;
+            padding: 25px;
+            box-shadow: 0 4px 6px rgba(0,0,0,0.07);
+        }
+
+        .drift-item {
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+            padding: 15px;
+            margin-bottom: 10px;
+            background: #f7fafc;
+            border-radius: 8px;
+            border-left: 4px solid #e53e3e;
+        }
+
+        .drift-item.fixed {
+            border-left-color: #38a169;
+            opacity: 0.7;
+        }
+
+        .drift-details {
+            flex: 1;
+        }
+
+        .resource-name {
+            font-weight: 600;
+            color: #2d3748;
+            margin-bottom: 4px;
+        }
+
+        .drift-info {
+            color: #718096;
+            font-size: 14px;
+        }
+
+        .fix-button {
+            padding: 8px 16px;
+            background: #4299e1;
+            color: white;
+            border: none;
+            border-radius: 6px;
+            cursor: pointer;
+            font-weight: 600;
+            transition: background 0.2s;
+        }
+
+        .fix-button:hover {
+            background: #3182ce;
+        }
+
+        .fix-button.fixed {
+            background: #38a169;
+            cursor: default;
+        }
+
+        .logs {
+            background: #1a202c;
+            color: #e2e8f0;
+            padding: 20px;
+            border-radius: 12px;
+            font-family: 'Monaco', 'Menlo', monospace;
+            font-size: 13px;
+            max-height: 400px;
+            overflow-y: auto;
+            margin-top: 20px;
+        }
+
+        .log-entry {
+            margin-bottom: 8px;
+            padding: 4px;
+        }
+
+        .log-time {
+            color: #718096;
+            margin-right: 10px;
+        }
+
+        .log-drift {
+            color: #fc8181;
+        }
+
+        .log-fixed {
+            color: #68d391;
+        }
+
+        .log-claude {
+            color: #90cdf4;
+        }
+
+        .pulse {
+            animation: pulse 2s infinite;
+        }
+
+        @keyframes pulse {
+            0% { opacity: 1; }
+            50% { opacity: 0.5; }
+            100% { opacity: 1; }
+        }
+
+        .refresh-button {
+            position: fixed;
+            bottom: 30px;
+            right: 30px;
+            width: 60px;
+            height: 60px;
+            border-radius: 50%;
+            background: white;
+            border: none;
+            box-shadow: 0 4px 12px rgba(0,0,0,0.15);
+            cursor: pointer;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            font-size: 24px;
+            transition: transform 0.2s;
+        }
+
+        .refresh-button:hover {
+            transform: scale(1.1);
+        }
+
+        .refresh-button.spinning {
+            animation: spin 1s linear infinite;
+        }
+
+        @keyframes spin {
+            from { transform: rotate(0deg); }
+            to { transform: rotate(360deg); }
+        }
+    </style>
+</head>
+<body>
+    <div class="container">
+        <div class="header">
+            <h1>
+                <span>🔍</span>
+                Drift Detector Dashboard
+            </h1>
+            <p class="subtitle">Real-time monitoring of Kubernetes configuration drift</p>
+        </div>
+
+        <div class="grid">
+            <div class="card">
+                <div class="card-title">Resources Monitored</div>
+                <div class="card-value" id="resources-count">12</div>
+                <span class="card-status status-ok">ConfigHub Connected</span>
+            </div>
+
+            <div class="card">
+                <div class="card-title">Drift Detected</div>
+                <div class="card-value" id="drift-count">2</div>
+                <span class="card-status status-drift" id="drift-status">Action Required</span>
+            </div>
+
+            <div class="card">
+                <div class="card-title">Auto-Fixed Today</div>
+                <div class="card-value" id="fixed-count">5</div>
+                <span class="card-status status-ok">AI Enabled</span>
+            </div>
+
+            <div class="card">
+                <div class="card-title">Cost Saved</div>
+                <div class="card-value">$240</div>
+                <span class="card-status status-ok">This Month</span>
+            </div>
+        </div>
+
+        <div class="drift-items">
+            <h2 style="margin-bottom: 20px; color: #2d3748;">Active Drift Items</h2>
+
+            <div class="drift-item" id="drift-backend">
+                <div class="drift-details">
+                    <div class="resource-name">backend-api</div>
+                    <div class="drift-info">
+                        Deployment • Replicas: <strong>5</strong> (expected: 3) • Cost impact: $180/month
+                    </div>
+                </div>
+                <button class="fix-button" onclick="fixDrift('backend')">Fix Drift</button>
+            </div>
+
+            <div class="drift-item" id="drift-frontend">
+                <div class="drift-details">
+                    <div class="resource-name">frontend-web</div>
+                    <div class="drift-info">
+                        Deployment • Replicas: <strong>1</strong> (expected: 2) • Availability risk
+                    </div>
+                </div>
+                <button class="fix-button" onclick="fixDrift('frontend')">Fix Drift</button>
+            </div>
+        </div>
+
+        <div class="logs">
+            <div class="log-entry">
+                <span class="log-time">12:15:37</span>
+                <span>🚀 Drift Detector started with informers</span>
+            </div>
+            <div class="log-entry">
+                <span class="log-time">12:15:38</span>
+                <span>📦 Created ConfigHub space: drift-detector-1758540677</span>
+            </div>
+            <div class="log-entry">
+                <span class="log-time">12:15:39</span>
+                <span>✅ Created set: critical-services</span>
+            </div>
+            <div class="log-entry">
+                <span class="log-time">12:15:40</span>
+                <span>🔍 Monitoring 12 critical resources</span>
+            </div>
+            <div class="log-entry pulse">
+                <span class="log-time">12:16:15</span>
+                <span class="log-drift">⚠️  DRIFT: backend-api has 5 replicas (expected: 3)</span>
+            </div>
+            <div class="log-entry pulse">
+                <span class="log-time">12:16:15</span>
+                <span class="log-drift">⚠️  DRIFT: frontend-web has 1 replica (expected: 2)</span>
+            </div>
+            <div class="log-entry">
+                <span class="log-time">12:16:16</span>
+                <span class="log-claude">🤖 Claude: Over-scaling detected, cost impact $180/month</span>
+            </div>
+            <div class="log-entry">
+                <span class="log-time">12:16:17</span>
+                <span>📝 Push-upgrade pattern applied to downstream environments</span>
+            </div>
+        </div>
+    </div>
+
+    <button class="refresh-button" onclick="refresh()" title="Refresh">
+        🔄
+    </button>
+
+    <script>
+        let driftCount = 2;
+        let fixedCount = 5;
+
+        function fixDrift(resource) {
+            const button = event.target;
+            const item = document.getElementById('drift-' + resource);
+
+            // Simulate fixing drift
+            button.textContent = 'Fixing...';
+            button.disabled = true;
+
+            setTimeout(() => {
+                button.textContent = '✓ Fixed';
+                button.classList.add('fixed');
+                item.classList.add('fixed');
+
+                // Update counters
+                driftCount--;
+                fixedCount++;
+                document.getElementById('drift-count').textContent = driftCount;
+                document.getElementById('fixed-count').textContent = fixedCount;
+
+                if (driftCount === 0) {
+                    document.getElementById('drift-status').textContent = 'All Clear';
+                    document.getElementById('drift-status').className = 'card-status status-ok';
+                }
+
+                // Add log entry
+                addLogEntry(`✅ Fixed drift: ${resource}-api scaled to correct replica count`);
+            }, 1500);
+        }
+
+        function addLogEntry(message) {
+            const logs = document.querySelector('.logs');
+            const now = new Date();
+            const time = now.toTimeString().split(' ')[0];
+
+            const entry = document.createElement('div');
+            entry.className = 'log-entry';
+            entry.innerHTML = `
+                <span class="log-time">${time}</span>
+                <span class="${message.includes('✅') ? 'log-fixed' : ''}">${message}</span>
+            `;
+
+            logs.appendChild(entry);
+            logs.scrollTop = logs.scrollHeight;
+        }
+
+        function refresh() {
+            const button = event.currentTarget;
+            button.classList.add('spinning');
+
+            setTimeout(() => {
+                button.classList.remove('spinning');
+                addLogEntry('🔄 Refreshed drift detection status');
+
+                // Simulate finding new drift
+                if (Math.random() > 0.7) {
+                    driftCount++;
+                    document.getElementById('drift-count').textContent = driftCount;
+                    document.getElementById('drift-status').textContent = 'Action Required';
+                    document.getElementById('drift-status').className = 'card-status status-drift';
+                }
+            }, 1000);
+        }
+
+        // Simulate periodic checks
+        setInterval(() => {
+            if (Math.random() > 0.8) {
+                addLogEntry('🔍 Informer triggered: Deployment update detected');
+            }
+        }, 15000);
+
+        // Simulate ConfigHub operations
+        setTimeout(() => {
+            addLogEntry('📊 ConfigHub: BulkPatchUnits called with Upgrade=true');
+        }, 5000);
+
+        setTimeout(() => {
+            addLogEntry('🤖 Claude: Analyzing drift patterns for optimization...');
+        }, 8000);
+    </script>
+</body>
+</html>

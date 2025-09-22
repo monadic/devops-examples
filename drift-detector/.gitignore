@@ -1,0 +1,50 @@
+# Binaries
+drift-detector
+*.exe
+*.dll
+*.so
+*.dylib
+
+# Test binary, built with `go test -c`
+*.test
+
+# Output of the go coverage tool
+*.out
+
+# Go workspace
+go.work
+
+# Dependency directories
+vendor/
+
+# Configuration files with secrets
+.env
+*.secret
+*-secret.yaml
+
+# Local project files
+.drift-detector-project
+.drift-detector-config
+
+# IDE
+.idea/
+.vscode/
+*.swp
+*.swo
+
+# OS files
+.DS_Store
+Thumbs.db
+
+# Temporary files
+tmp/
+temp/
+*.tmp
+*.bak
+
+# Logs
+*.log
+
+# Build directories
+dist/
+build/

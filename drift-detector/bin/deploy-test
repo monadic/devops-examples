@@ -1,0 +1,161 @@
+#!/bin/bash
+# Deploy test workloads to the Kind cluster for drift detection testing
+
+set -e
+
+echo "🚀 Deploying test workloads"
+echo "=========================="
+
+# Check kubectl
+if ! command -v kubectl &> /dev/null; then
+    echo "❌ Error: kubectl not found"
+    exit 1
+fi
+
+# Check if drift-test namespace exists
+if ! kubectl get namespace drift-test &> /dev/null; then
+    echo "❌ Error: drift-test namespace not found. Run: ./bin/create-cluster"
+    exit 1
+fi
+
+# Check for test deployments file
+if [ ! -f "k8s/test-deployments.yaml" ]; then
+    echo "⚠️  Warning: k8s/test-deployments.yaml not found. Creating default test workloads..."
+
+    mkdir -p k8s
+    cat > k8s/test-deployments.yaml <<'EOF'
+apiVersion: v1
+kind: Namespace
+metadata:
+  name: drift-test
+---
+apiVersion: apps/v1
+kind: Deployment
+metadata:
+  name: backend-api
+  namespace: drift-test
+  labels:
+    app: backend-api
+    tier: critical
+    monitor: "true"
+spec:
+  replicas: 3
+  selector:
+    matchLabels:
+      app: backend-api
+  template:
+    metadata:
+      labels:
+        app: backend-api
+        tier: critical
+    spec:
+      containers:
+      - name: backend
+        image: nginx:alpine
+        ports:
+        - containerPort: 80
+        resources:
+          requests:
+            memory: "64Mi"
+            cpu: "100m"
+          limits:
+            memory: "128Mi"
+            cpu: "200m"
+---
+apiVersion: apps/v1
+kind: Deployment
+metadata:
+  name: frontend-web
+  namespace: drift-test
+  labels:
+    app: frontend-web
+    tier: critical
+    monitor: "true"
+spec:
+  replicas: 2
+  selector:
+    matchLabels:
+      app: frontend-web
+  template:
+    metadata:
+      labels:
+        app: frontend-web
+        tier: critical
+    spec:
+      containers:
+      - name: frontend
+        image: nginx:alpine
+        ports:
+        - containerPort: 80
+        resources:
+          requests:
+            memory: "32Mi"
+            cpu: "50m"
+          limits:
+            memory: "64Mi"
+            cpu: "100m"
+---
+apiVersion: v1
+kind: Service
+metadata:
+  name: backend-api
+  namespace: drift-test
+spec:
+  selector:
+    app: backend-api
+  ports:
+  - port: 80
+    targetPort: 80
+---
+apiVersion: v1
+kind: Service
+metadata:
+  name: frontend-web
+  namespace: drift-test
+spec:
+  selector:
+    app: frontend-web
+  ports:
+  - port: 80
+    targetPort: 80
+EOF
+fi
+
+# Deploy the test workloads
+echo "📦 Deploying workloads to drift-test namespace..."
+kubectl apply -f k8s/test-deployments.yaml
+
+# Wait for deployments to be ready
+echo "⏳ Waiting for deployments to be ready..."
+kubectl wait --for=condition=available deployment --all -n drift-test --timeout=60s
+
+# Show deployment status
+echo ""
+echo "📊 Deployment Status:"
+kubectl get deployments -n drift-test
+
+echo ""
+echo "✅ Test workloads deployed successfully!"
+echo ""
+
+# Introduce some drift for testing
+if [ "$1" == "--with-drift" ]; then
+    echo "🔄 Introducing drift for testing..."
+
+    # Scale backend-api up (should be 3)
+    kubectl scale deployment backend-api --replicas=5 -n drift-test
+    echo "  - Scaled backend-api to 5 replicas (expected: 3)"
+
+    # Scale frontend-web down (should be 2)
+    kubectl scale deployment frontend-web --replicas=1 -n drift-test
+    echo "  - Scaled frontend-web to 1 replica (expected: 2)"
+
+    echo ""
+    echo "⚠️  Drift introduced! Run drift-detector to detect and fix."
+fi
+
+echo ""
+echo "Next steps:"
+echo "  ./bin/deploy-test --with-drift  # Introduce drift"
+echo "  ./drift-detector                # Detect drift"
+echo "  kubectl get deployments -n drift-test  # Check status"

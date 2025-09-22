@@ -1,0 +1,214 @@
+#!/bin/bash
+# Deploy drift-detector to production Kubernetes cluster
+
+set -e
+
+echo "🚀 Deploying Drift Detector to Production"
+echo "========================================"
+
+# Check prerequisites
+if ! command -v kubectl &> /dev/null; then
+    echo "❌ Error: kubectl not found"
+    exit 1
+fi
+
+if ! cub auth get-token &> /dev/null; then
+    echo "❌ Error: Not authenticated with ConfigHub. Run: cub auth login"
+    exit 1
+fi
+
+# Get current context
+CONTEXT=$(kubectl config current-context)
+echo "📍 Current context: $CONTEXT"
+echo ""
+read -p "Deploy to this cluster? (y/N) " -n 1 -r
+echo ""
+if [[ ! $REPLY =~ ^[Yy]$ ]]; then
+    echo "❌ Deployment cancelled"
+    exit 1
+fi
+
+# Create namespace
+echo "📦 Creating namespace..."
+kubectl create namespace drift-detector --dry-run=client -o yaml | kubectl apply -f -
+
+# Create ConfigHub secret
+echo "🔐 Creating secrets..."
+CUB_TOKEN=$(cub auth get-token)
+CLAUDE_API_KEY=${CLAUDE_API_KEY:-""}
+
+kubectl create secret generic drift-detector-secrets \
+    --from-literal=cub-token="$CUB_TOKEN" \
+    --from-literal=claude-api-key="$CLAUDE_API_KEY" \
+    --namespace=drift-detector \
+    --dry-run=client -o yaml | kubectl apply -f -
+
+# Create deployment manifest
+echo "📝 Creating deployment manifest..."
+cat > /tmp/drift-detector-deployment.yaml <<EOF
+apiVersion: v1
+kind: ServiceAccount
+metadata:
+  name: drift-detector
+  namespace: drift-detector
+---
+apiVersion: rbac.authorization.k8s.io/v1
+kind: ClusterRole
+metadata:
+  name: drift-detector
+rules:
+- apiGroups: [""]
+  resources: ["pods", "services", "configmaps", "secrets"]
+  verbs: ["get", "list", "watch"]
+- apiGroups: ["apps"]
+  resources: ["deployments", "daemonsets", "replicasets", "statefulsets"]
+  verbs: ["get", "list", "watch", "update", "patch"]
+- apiGroups: ["batch"]
+  resources: ["jobs", "cronjobs"]
+  verbs: ["get", "list", "watch"]
+---
+apiVersion: rbac.authorization.k8s.io/v1
+kind: ClusterRoleBinding
+metadata:
+  name: drift-detector
+roleRef:
+  apiGroup: rbac.authorization.k8s.io
+  kind: ClusterRole
+  name: drift-detector
+subjects:
+- kind: ServiceAccount
+  name: drift-detector
+  namespace: drift-detector
+---
+apiVersion: apps/v1
+kind: Deployment
+metadata:
+  name: drift-detector
+  namespace: drift-detector
+  labels:
+    app: drift-detector
+    type: devops-app
+spec:
+  replicas: 1
+  selector:
+    matchLabels:
+      app: drift-detector
+  template:
+    metadata:
+      labels:
+        app: drift-detector
+    spec:
+      serviceAccountName: drift-detector
+      containers:
+      - name: drift-detector
+        image: golang:1.21-alpine
+        command: ["/app/drift-detector"]
+        env:
+        - name: CUB_TOKEN
+          valueFrom:
+            secretKeyRef:
+              name: drift-detector-secrets
+              key: cub-token
+        - name: CUB_API_URL
+          value: "https://hub.confighub.com/api"
+        - name: CLAUDE_API_KEY
+          valueFrom:
+            secretKeyRef:
+              name: drift-detector-secrets
+              key: claude-api-key
+              optional: true
+        - name: NAMESPACE
+          value: "" # Monitor all namespaces
+        - name: DRIFT_CHECK_INTERVAL
+          value: "5m"
+        - name: PORT
+          value: "8080"
+        ports:
+        - containerPort: 8080
+          name: http
+        livenessProbe:
+          httpGet:
+            path: /health
+            port: 8080
+          initialDelaySeconds: 10
+          periodSeconds: 30
+        readinessProbe:
+          httpGet:
+            path: /health
+            port: 8080
+          initialDelaySeconds: 5
+          periodSeconds: 10
+        resources:
+          requests:
+            memory: "128Mi"
+            cpu: "100m"
+          limits:
+            memory: "256Mi"
+            cpu: "500m"
+        volumeMounts:
+        - name: app
+          mountPath: /app
+      initContainers:
+      - name: build
+        image: golang:1.21-alpine
+        command:
+        - sh
+        - -c
+        - |
+          apk add --no-cache git
+          cd /build
+          git clone https://github.com/monadic/devops-examples.git
+          cd devops-examples/drift-detector
+          go build -o /app/drift-detector .
+        volumeMounts:
+        - name: app
+          mountPath: /app
+      volumes:
+      - name: app
+        emptyDir: {}
+---
+apiVersion: v1
+kind: Service
+metadata:
+  name: drift-detector
+  namespace: drift-detector
+spec:
+  selector:
+    app: drift-detector
+  ports:
+  - port: 80
+    targetPort: 8080
+    name: http
+EOF
+
+# Apply the deployment
+echo "🚀 Deploying drift-detector..."
+kubectl apply -f /tmp/drift-detector-deployment.yaml
+
+# Wait for deployment
+echo "⏳ Waiting for deployment to be ready..."
+kubectl rollout status deployment/drift-detector -n drift-detector --timeout=300s
+
+# Show status
+echo ""
+echo "✅ Deployment successful!"
+echo ""
+echo "📊 Status:"
+kubectl get deployment drift-detector -n drift-detector
+echo ""
+kubectl get pods -n drift-detector
+
+echo ""
+echo "📝 View logs:"
+echo "  kubectl logs -n drift-detector -l app=drift-detector -f"
+echo ""
+echo "🔍 Check health:"
+echo "  kubectl port-forward -n drift-detector deployment/drift-detector 8080:8080"
+echo "  curl http://localhost:8080/health"
+echo ""
+echo "📈 Get metrics:"
+echo "  kubectl port-forward -n drift-detector deployment/drift-detector 8080:8080"
+echo "  curl http://localhost:8080/metrics"
+
+# Clean up temp file
+rm -f /tmp/drift-detector-deployment.yaml
