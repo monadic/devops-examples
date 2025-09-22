@@ -253,7 +253,7 @@ func TestConfigHubRealAPIUsage(t *testing.T) {
 
 	hallucinatedAPIs := []string{
 		"GetVariant",         // ❌ HALLUCINATED
-		"CloneWithVariant",   // ❌ HALLUCINATED
+		"CloneWithVariant",   // ❌ Use direct editing instead
 		"GetGate",            // ❌ HALLUCINATED
 		"GetDependencyGraph", // ❌ HALLUCINATED
 		"UpdateStatus",       // ❌ HALLUCINATED

@@ -62,7 +62,7 @@ clone_env_units $project-staging $project-prod prod
 
 # Optional: Create regional prod variants
 if [ "$1" == "--with-regions" ]; then
-  echo "Creating regional production VARIANTS (clone + edit pattern)..."
+  echo "Creating regional production VARIANTS (direct editing pattern)..."
 
   for region in us eu asia; do
     echo "Creating $region-prod variant..."
@@ -75,25 +75,23 @@ if [ "$1" == "--with-regions" ]; then
     # Clone units to create base for variants
     clone_env_units $project-prod $project-$region-prod $region-prod
 
-    # Edit clones to create region-specific variants
+    # Edit units directly to create region-specific variants
     echo "  Customizing $region variant..."
     if [ "$region" == "us" ]; then
       # US variant: higher resources
-      cub run set-container-resources --unit drift-detector-deployment \
-        --space $project-$region-prod \
-        --container-name drift-detector \
-        --cpu 200m --memory 256Mi \
-        --change-desc "US variant: higher traffic expected" 2>/dev/null || true
+      echo '{"spec":{"template":{"spec":{"containers":[{"name":"drift-detector","resources":{"requests":{"cpu":"200m","memory":"256Mi"}}}]}}}}' | \
+        cub unit update drift-detector-deployment --space $project-$region-prod \
+        --patch --from-stdin --change-desc "US variant: higher resources for US traffic" 2>/dev/null || true
     elif [ "$region" == "eu" ]; then
       # EU variant: GDPR compliance settings
-      cub unit edit drift-detector-deployment --space $project-$region-prod \
-        --patch '{"spec":{"template":{"metadata":{"labels":{"compliance":"gdpr"}}}}}' \
-        --change-desc "EU variant: GDPR compliance" 2>/dev/null || true
+      echo '{"spec":{"template":{"metadata":{"labels":{"compliance":"gdpr","region":"eu"}}}}}' | \
+        cub unit update drift-detector-deployment --space $project-$region-prod \
+        --patch --from-stdin --change-desc "EU variant: GDPR compliance" 2>/dev/null || true
     elif [ "$region" == "asia" ]; then
       # Asia variant: different node selector
-      cub unit edit drift-detector-deployment --space $project-$region-prod \
-        --patch '{"spec":{"template":{"spec":{"nodeSelector":{"zone":"asia-east1"}}}}}' \
-        --change-desc "Asia variant: region-specific nodes" 2>/dev/null || true
+      echo '{"spec":{"template":{"spec":{"nodeSelector":{"zone":"asia-east1"}}}}}' | \
+        cub unit update drift-detector-deployment --space $project-$region-prod \
+        --patch --from-stdin --change-desc "Asia variant: region-specific nodes" 2>/dev/null || true
     fi
   done
 

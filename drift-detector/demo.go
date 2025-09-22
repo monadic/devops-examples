@@ -187,7 +187,7 @@ func (d *DriftDetectorDemo) showRealAPIUsage() {
 
 	avoidedAPIs := []string{
 		"GetVariant ❌ (hallucinated)",
-		"CloneWithVariant ❌ (hallucinated)",
+		"CloneWithVariant ❌ (use direct editing instead)",
 		"GetGate ❌ (hallucinated)",
 		"UpgradeSet ❌ (use push-upgrade instead)",
 	}
