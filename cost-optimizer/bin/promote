@@ -40,11 +40,14 @@ cub space get $to_space > /dev/null || { echo "❌ Target space $to_space does n
 
 # Use push-upgrade pattern to promote changes
 echo "Promoting changes using push-upgrade pattern..."
-cub bulk patch \
-  --space $to_space \
-  --where "UpstreamSpaceID = '$from_space'" \
-  --upgrade true \
-  --dry-run false
+
+# Promote each unit from source to target using push-upgrade
+for unit in namespace cost-optimizer-rbac cost-optimizer-deployment cost-optimizer-service cost-optimizer-config; do
+  echo "  📦 Promoting $unit..."
+  cub unit push-upgrade $unit --space $from_space || {
+    echo "  ⚠️  Warning: Could not promote $unit (may not have downstream units)"
+  }
+done
 
 echo ""
 echo "✅ Promotion complete!"

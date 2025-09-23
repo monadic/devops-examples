@@ -1,0 +1,72 @@
+#!/bin/bash
+
+# Set cost-optimizer version using ConfigHub's version management
+# Following the global-app pattern for version management
+
+set -e
+
+if [ ! -e ".cub-project" ]; then
+  echo "Run bin/install-base first to create the base configuration"
+  exit 1
+fi
+
+project=$(cat .cub-project)
+version=${1:-latest}
+env=${2:-dev}
+space=$project-$env
+
+if [ -z "$version" ]; then
+  echo "Usage: bin/set-version <version> [environment]"
+  echo ""
+  echo "Examples:"
+  echo "  bin/set-version 1.0.0          # Set version 1.0.0 in dev"
+  echo "  bin/set-version 1.0.1 staging  # Set version 1.0.1 in staging"
+  echo "  bin/set-version latest prod    # Set latest version in prod"
+  echo ""
+  echo "Available environments: dev, staging, prod"
+  exit 1
+fi
+
+echo "📦 Setting cost-optimizer version to $version in $env environment..."
+echo "Space: $space"
+echo ""
+
+# Check if space exists
+cub space get $space > /dev/null || {
+  echo "❌ Space $space does not exist"
+  echo "Available spaces:"
+  cub space list | grep $project
+  exit 1
+}
+
+# Set the version for cost-optimizer deployment
+echo "Updating cost-optimizer deployment version..."
+cub run set-image-reference \
+  --container-name cost-optimizer \
+  --image-reference :$version \
+  --space $space || {
+    echo "❌ Failed to set version. Make sure the deployment unit exists."
+    exit 1
+  }
+
+# Also update the OpenCost version if it's deployed
+if cub unit get opencost-deployment --space $space &>/dev/null; then
+  echo "Updating OpenCost deployment version..."
+  cub run set-image-reference \
+    --container-name opencost \
+    --image-reference quay.io/kubecost1/opencost:$version \
+    --space $space || echo "⚠️  Warning: Could not update OpenCost version"
+fi
+
+echo ""
+echo "✅ Version set to $version!"
+echo ""
+echo "View the changes:"
+echo "  cub unit get cost-optimizer-deployment --space $space --format json | jq '.spec.template.spec.containers[0].image'"
+echo ""
+echo "Apply the new version to Kubernetes:"
+echo "  bin/apply-all $env"
+echo ""
+echo "Promote to next environment:"
+echo "  bin/promote $env staging     # If in dev"
+echo "  bin/promote staging prod     # If in staging"

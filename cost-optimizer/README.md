@@ -221,18 +221,50 @@ bin/apply-all dev
 # Monitor for 24 hours...
 
 # Promote to staging using push-upgrade
-cub unit push-upgrade cost-optimizer-deployment \
-  --space fluffy-kitten-base
+bin/promote dev staging
 bin/apply-all staging
 # Monitor for 3 days...
 
 # Continue promotion chain
-cub unit push-upgrade cost-optimizer-deployment \
-  --space fluffy-kitten-staging
+bin/promote staging prod
 bin/apply-all prod
 ```
 
-### 5. Configuration Management
+### 5. Version Management
+
+Manage cost-optimizer versions across environments:
+
+```bash
+# Set specific version in dev
+bin/set-version 1.0.0 dev
+
+# Set version in staging
+bin/set-version 1.0.1 staging
+
+# View current version
+cub unit get cost-optimizer-deployment --space fluffy-kitten-dev \
+  --format json | jq '.spec.template.spec.containers[0].image'
+```
+
+### 6. Rollback Capability
+
+Leverage ConfigHub's revision history for safe rollbacks:
+
+```bash
+# Rollback to previous version
+bin/rollback dev
+
+# Rollback staging to 2 versions ago
+bin/rollback staging -2
+
+# Rollback prod to specific revision
+bin/rollback prod 5
+
+# View revision history
+cub revision list cost-optimizer-deployment --space fluffy-kitten-dev
+```
+
+### 7. Configuration Management
 
 If an optimization causes issues, update the unit:
 
@@ -323,6 +355,39 @@ Low-risk optimizations can be auto-applied:
 └─────────────────────────────────────────────────────────┘
 ```
 
+## Advanced ConfigHub Features
+
+### Apply Gates (Future Feature)
+
+ConfigHub will support gates for controlled promotion:
+
+```bash
+# Set up production gate (when available)
+cub space set-gate fluffy-kitten-prod \
+  --require-approval true \
+  --approvers "platform-team"
+
+# Check gate status
+cub gate status --space fluffy-kitten-prod
+
+# Approve promotion
+cub gate approve --space fluffy-kitten-prod \
+  --comment "Tested in staging for 3 days"
+```
+
+### Version Tracking
+
+Track all versions across environments:
+
+```bash
+# View version across all environments
+for env in dev staging prod; do
+  echo "$env: $(cub unit get cost-optimizer-deployment \
+    --space fluffy-kitten-$env --format json | \
+    jq -r '.spec.template.spec.containers[0].image')"
+done
+```
+
 ## ConfigHub Advantages Summary
 
 | Feature | DIY Script | Agentic Workflow | ConfigHub + Cost Optimizer |
@@ -331,10 +396,12 @@ Low-risk optimizations can be auto-applied:
 | **State Management** | Log files | Stateless | Versioned units in ConfigHub |
 | **Multi-Environment** | Manual copy | Re-run workflow | Push-upgrade propagation |
 | **Bulk Operations** | Loop & apply | Multiple triggers | Single filter + bulk-patch |
-| **Rollback** | Git revert | Re-run old version | Update unit to previous config |
+| **Rollback** | Git revert | Re-run old version | Revision history rollback |
 | **Audit Trail** | Logs | Workflow history | Full unit versioning |
 | **AI Integration** | API calls | In workflow | AI-driven config updates |
 | **Cost Tracking** | Spreadsheet | External tool | Sets for grouping configs |
+| **Version Management** | Manual tags | CI/CD pipeline | `cub run set-image-reference` |
+| **Apply Gates** | Manual approval | Pipeline gates | ConfigHub gates (future) |
 
 ## Quick Start
 

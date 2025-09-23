@@ -36,10 +36,12 @@ cub unit apply cost-optimizer-service --space $space
 echo "  🚀 Applying deployment..."
 cub unit apply cost-optimizer-deployment --space $space
 
-# Alternative: Use bulk apply with filters
+# Note: Bulk apply using filters (when all units need to be applied together)
+# This would require creating a filter first, then using it
 echo ""
-echo "Alternatively, applying all cost-optimizer units at once..."
-cub bulk apply --space $space --where "Labels.app = 'cost-optimizer'" || true
+echo "Note: For bulk operations, create a filter and use it:"
+echo "  cub filter create cost-optimizer-units Unit --where-field \"Labels.app = 'cost-optimizer'\" --space $project-filters"
+echo "  Then use the filter for bulk operations"
 
 echo ""
 echo "✅ Deployment complete!"

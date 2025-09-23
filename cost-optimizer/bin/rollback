@@ -1,0 +1,94 @@
+#!/bin/bash
+
+# Rollback cost-optimizer to a previous revision using ConfigHub
+# Leverages ConfigHub's revision history for safe rollbacks
+
+set -e
+
+if [ ! -e ".cub-project" ]; then
+  echo "Run bin/install-base first to create the base configuration"
+  exit 1
+fi
+
+project=$(cat .cub-project)
+env=${1:-dev}
+revision=${2:--1}
+space=$project-$env
+
+if [ "$1" == "--help" ] || [ "$1" == "-h" ]; then
+  echo "Usage: bin/rollback [environment] [revision]"
+  echo ""
+  echo "Examples:"
+  echo "  bin/rollback                  # Rollback dev to previous revision"
+  echo "  bin/rollback staging          # Rollback staging to previous revision"
+  echo "  bin/rollback prod -2          # Rollback prod two revisions back"
+  echo "  bin/rollback prod 5           # Rollback prod to specific revision 5"
+  echo ""
+  echo "Available environments: dev, staging, prod"
+  echo ""
+  echo "Revision options:"
+  echo "  -1    Previous revision (default)"
+  echo "  -2    Two revisions back"
+  echo "  N     Specific revision number"
+  exit 0
+fi
+
+echo "🔄 Rolling back cost-optimizer in $env environment..."
+echo "Space: $space"
+echo "Target revision: $revision"
+echo ""
+
+# Check if space exists
+cub space get $space > /dev/null || {
+  echo "❌ Space $space does not exist"
+  echo "Available spaces:"
+  cub space list | grep $project
+  exit 1
+}
+
+# Show current revision history
+echo "📜 Revision history for cost-optimizer-deployment:"
+cub revision list cost-optimizer-deployment --space $space || {
+  echo "❌ Failed to get revision history"
+  exit 1
+}
+
+echo ""
+echo "🔄 Rolling back units..."
+
+# Rollback each unit
+for unit in cost-optimizer-deployment cost-optimizer-service cost-optimizer-config; do
+  echo "  📦 Rolling back $unit to revision $revision..."
+
+  # Get current revision info
+  current_rev=$(cub unit get $unit --space $space --format json | jq -r '.revision // "unknown"')
+  echo "      Current revision: $current_rev"
+
+  # Perform rollback
+  if [ "$revision" == "-1" ]; then
+    # Rollback to previous revision
+    cub unit update $unit --space $space --rollback || {
+      echo "  ⚠️  Warning: Could not rollback $unit (may be at oldest revision)"
+    }
+  else
+    # Rollback to specific revision
+    cub unit update $unit --space $space --rollback --to-revision $revision || {
+      echo "  ⚠️  Warning: Could not rollback $unit to revision $revision"
+    }
+  fi
+done
+
+echo ""
+echo "✅ Rollback complete!"
+echo ""
+echo "Verify rollback:"
+echo "  cub unit list --space $space --show-status"
+echo ""
+echo "View revision details:"
+echo "  cub revision list cost-optimizer-deployment --space $space"
+echo ""
+echo "Apply rolled back configuration to Kubernetes:"
+echo "  bin/apply-all $env"
+echo ""
+echo "If rollback causes issues, roll forward with:"
+echo "  bin/set-version <new-version> $env"
