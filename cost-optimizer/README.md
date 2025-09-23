@@ -118,52 +118,53 @@ This uses ConfigHub's atomic apply to deploy all units together.
 
 ## Key ConfigHub Features in Action
 
-### 1. Cost Analysis Storage (Units as Database)
+### 1. Cost Analysis Storage (Units for Configuration)
 
-Every cost analysis is stored as a ConfigHub unit, creating a queryable history:
+Cost optimizer configurations are stored as ConfigHub units:
 
 ```bash
-# View all cost analyses
-cub unit list --space fluffy-kitten-analysis --label type=cost-analysis
+# View optimizer units
+cub unit list --space fluffy-kitten-base
 
-ID                                    NAME                 CREATED              MONTHLY-COST
-8f3a2b1c-4d5e-6f7a-8b9c-0d1e2f3a4b5c  analysis-2024-01-15  2024-01-15T10:30:00  $1,245.67
-7e2a1b0c-3d4e-5f6a-7b8c-9d0e1f2a3b4c  analysis-2024-01-14  2024-01-14T10:30:00  $1,312.45
-6d1a0b9c-2d3e-4f5a-6b7c-8d9e0f1a2b3c  analysis-2024-01-13  2024-01-13T10:30:00  $1,298.23
+# Output shows your configuration units:
+# - cost-optimizer-deployment
+# - cost-optimizer-service
+# - cost-optimizer-rbac
+# - metrics-server
 ```
 
 ### 2. Recommendation Tracking (Sets for Grouping)
 
-Critical recommendations are automatically added to Sets:
+Organize units into Sets for bulk operations:
 
 ```bash
-# View critical cost-saving opportunities
+# Create a set for critical services
+cub set create critical-costs --space fluffy-kitten-base \
+  --label priority=high
+
+# Add units to the set
+cub set add-member critical-costs cost-optimizer-deployment \
+  --space fluffy-kitten-base
+
+# View set (shows member unit IDs)
 cub set get critical-costs --space fluffy-kitten-base
-
-MEMBERS (4 units with potential savings >$50/month):
-- backend-api:       Reduce from 5 to 2 replicas     ($73.65/month saving)
-- frontend-web:      Rightsize CPU/memory limits      ($45.23/month saving)
-- redis-cache:       Switch to smaller instance       ($62.10/month saving)
-- postgres-primary:  Enable auto-scaling              ($51.45/month saving)
-
-Total Potential Savings: $232.43/month
 ```
 
-### 3. Bulk Optimization (Filters + BulkPatch)
+### 3. Bulk Operations (Filters + BulkPatch)
 
-Apply AI recommendations across ALL environments:
+Apply changes across multiple units:
 
 ```bash
-# Create filter for auto-applicable optimizations
-cub filter create auto-apply Unit \
-  --where-field "Labels.risk='low' AND Labels.savings > 20"
+# Create filter for units to optimize
+cub filter create cost-units Unit \
+  --where-field "Space.Labels.project = 'fluffy-kitten'" \
+  --space fluffy-kitten-filters
 
-# Apply to all matching resources
-cub unit bulk-patch --filter fluffy-kitten/auto-apply \
+# Apply patches to matching units
+cub bulk patch \
+  --space fluffy-kitten-dev \
+  --where "Labels.app = 'cost-optimizer'" \
   --patch '{"spec": {"replicas": 2}}'
-
-Applied to 12 units across dev, staging, prod
-Estimated monthly savings: $287.45
 ```
 
 ### 4. Promotion Path (Push-Upgrade Pattern)
@@ -185,16 +186,19 @@ cub unit update --patch --upgrade --space fluffy-kitten-prod
 bin/apply-all prod
 ```
 
-### 5. Instant Rollback
+### 5. Configuration Management
 
-If an optimization causes issues:
+If an optimization causes issues, update the unit:
 
 ```bash
-# Revert to previous version
-cub unit rollback cost-optimizer-deployment --space fluffy-kitten-prod
+# Update unit to previous configuration
+cub unit update cost-optimizer-deployment \
+  --space fluffy-kitten-prod \
+  --data @previous-config.yaml
 
-# Or revert entire Set
-cub set rollback critical-costs --space fluffy-kitten-prod
+# Or use ConfigHub's revision history to restore
+cub unit get cost-optimizer-deployment \
+  --space fluffy-kitten-prod --json
 ```
 
 ## Real-World Cost Optimization Flow
@@ -208,22 +212,19 @@ app.RunWithInformers(func() error {
     analysis := AnalyzeCosts()
     recommendations := claude.GenerateRecommendations(analysis)
 
-    // Store in ConfigHub for tracking
-    sdk.CreateUnit(Unit{
-        Name: fmt.Sprintf("analysis-%s", time.Now()),
-        Data: analysis,
-        Labels: map[string]string{
-            "total-cost": fmt.Sprintf("%.2f", analysis.TotalCost),
-            "savings": fmt.Sprintf("%.2f", analysis.PotentialSavings),
-        },
-    })
+    // Apply recommended configurations via ConfigHub
+    if recommendations.ShouldOptimize {
+        // Update deployment configuration in ConfigHub
+        cub.UpdateUnit("cost-optimizer-deployment",
+            updatedConfig)
+    }
 
     return nil
 })
 ```
 
 ### 2. AI Recommendation Generation
-Claude analyzes patterns and suggests optimizations:
+Claude analyzes patterns and suggests optimizations that are applied via ConfigHub:
 
 ```json
 {
@@ -234,7 +235,7 @@ Claude analyzes patterns and suggests optimizations:
     "suggested": {"cpu": "200m", "memory": "256Mi", "replicas": 3},
     "monthly_savings": 73.65,
     "risk": "low",
-    "confighub_action": "Update deployment unit with new limits"
+    "action": "Update ConfigHub unit with new resource limits"
   }
 }
 ```
@@ -244,10 +245,10 @@ Low-risk optimizations can be auto-applied:
 
 ```bash
 # The optimizer automatically:
-1. Creates optimization unit in ConfigHub
-2. Adds to appropriate Set (critical-costs)
-3. Applies if AUTO_APPLY_OPTIMIZATIONS=true
-4. Tracks results for analysis
+1. Updates configuration units in ConfigHub
+2. Groups related units using Sets
+3. Applies changes if AUTO_APPLY_OPTIMIZATIONS=true
+4. Uses ConfigHub revision history for tracking
 ```
 
 ## Dashboard & Monitoring
@@ -284,10 +285,10 @@ Low-risk optimizations can be auto-applied:
 | **State Management** | Log files | Stateless | Versioned units in ConfigHub |
 | **Multi-Environment** | Manual copy | Re-run workflow | Push-upgrade propagation |
 | **Bulk Operations** | Loop & apply | Multiple triggers | Single filter + bulk-patch |
-| **Rollback** | Git revert | Re-run old version | Instant ConfigHub rollback |
+| **Rollback** | Git revert | Re-run old version | Update unit to previous config |
 | **Audit Trail** | Logs | Workflow history | Full unit versioning |
-| **AI Integration** | API calls | In workflow | Stored recommendations |
-| **Cost Tracking** | Spreadsheet | External tool | Built-in Sets and queries |
+| **AI Integration** | API calls | In workflow | AI-driven config updates |
+| **Cost Tracking** | Spreadsheet | External tool | Sets for grouping configs |
 
 ## Quick Start
 
@@ -319,14 +320,14 @@ cub set get critical-costs --space $(cat .cub-project)-base
   run: |
     ./cost-optimizer --mode=analyze
 
-- name: Review Critical Costs
+- name: Review Critical Sets
   run: |
     cub set get critical-costs --space ${{ env.PROJECT }}-dev
 
-- name: Auto-Apply Low Risk
+- name: Apply Optimizations
   if: github.ref == 'refs/heads/main'
   run: |
-    cub unit bulk-patch --filter auto-apply --upgrade
+    cub unit apply cost-optimizer-deployment --space ${{ env.PROJECT }}-dev
 ```
 
 ---
