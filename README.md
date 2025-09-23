@@ -32,6 +32,8 @@ cd any-example/
 
 ## 📦 Available Apps
 
+**2 Production-Ready Apps** leveraging ConfigHub's full capabilities:
+
 ### 🔍 [Drift Detector](./drift-detector)
 Continuously monitors for configuration drift and automatically fixes it.
 - **Status**: ✅ Production Ready
@@ -43,11 +45,17 @@ Continuously monitors for configuration drift and automatically fixes it.
   ./bin/demo
   ```
 
-### 💰 [Cost Optimizer](./cost-optimizer) *(Coming Soon)*
-Analyzes resource usage and optimizes costs across clusters.
-- **Status**: 🚧 In Development
-- **Features**: Resource analysis, Right-sizing, Spot instances
-- **Use Case**: Reduce cloud costs by 30-50%
+### 💰 [Cost Optimizer](./cost-optimizer)
+AI-powered Kubernetes cost optimization with real-time analysis and recommendations.
+- **Status**: ✅ Production Ready
+- **Features**: Claude AI analysis, OpenCost integration, Web dashboard (:8081), Auto-apply optimizations
+- **Quick Start**:
+  ```bash
+  cd cost-optimizer
+  ./bin/install-base
+  ./run.sh  # Handles Claude API key setup
+  ```
+- **Use Case**: Reduce cloud costs by 30-50% with intelligent recommendations
 
 ### 🔐 Security Scanner *(Planned)*
 Continuous security scanning and compliance checking.
@@ -116,6 +124,15 @@ These apps use:
 - **Kubernetes Informers** for event-driven monitoring
 - **Claude AI** for intelligent analysis
 - **Push-upgrade pattern** for change propagation
+
+### ConfigHub Features Demonstrated
+
+✅ **Version Management** - `cub run set-image-reference` for tracking versions
+✅ **Environment Hierarchy** - base → dev → staging → prod with upstream/downstream
+✅ **Rollback Capability** - Leverage revision history for safe rollbacks
+✅ **Sets & Filters** - Group and target configurations for bulk operations
+✅ **Push-Upgrade** - Automatic change propagation across environments
+✅ **Self-Deployment** - Apps deploy themselves through ConfigHub units
 
 ## 🆚 Why Not Agentic DevOps Workflow Tools?
 
