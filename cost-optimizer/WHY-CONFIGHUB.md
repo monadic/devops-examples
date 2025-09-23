@@ -1,14 +1,14 @@
 # Why ConfigHub for Cost Optimizer
 
-## Core Rationale: DevOps Apps on ConfigHub
+DISCLAIMER this section is asking Claude to be "imaginative" and may contain wild stuff.
 
-### The Fundamental Shift
-Traditional cost optimization tools are either:
-- **Scripts**: Run once, output to logs, no memory
-- **SaaS Platforms**: Expensive, locked-in, limited customization
-- **Workflow Tools**: Ephemeral, stateless, triggered execution
 
-**ConfigHub + DevOps Apps** provides a fourth way: **Persistent, stateful applications with configuration as first-class data**.
+
+## DevOps Apps on ConfigHub
+
+**AI agents are using Workflow Tools**: Ephemeral, stateless, triggered execution
+
+**ConfigHub + DevOps Apps** provides another way: **Persistent, stateful applications with configuration as first-class data**.
 
 ## Specific Advantages for Cost Optimization
 
