@@ -182,11 +182,10 @@ Organize units into Sets for bulk operations:
 cub set create critical-costs --space fluffy-kitten-base \
   --label priority=high
 
-# Add units to the set
-cub set add-member critical-costs cost-optimizer-deployment \
-  --space fluffy-kitten-base
+# Note: Sets in ConfigHub are managed through unit creation with SetIDs
+# Units are added to sets when created or updated
 
-# View set (shows member unit IDs)
+# View set
 cub set get critical-costs --space fluffy-kitten-base
 ```
 
@@ -200,10 +199,15 @@ cub filter create cost-units Unit \
   --where-field "Space.Labels.project = 'fluffy-kitten'" \
   --space fluffy-kitten-filters
 
-# Apply patches to matching units
-cub bulk patch \
+# Apply patches to matching units using filter
+# Note: bulk patch requires a filter to be created first
+cub filter create optimizer-units Unit \
+  --where-field "Labels.app = 'cost-optimizer'" \
+  --space fluffy-kitten-filters
+
+# Then use bulk operations with the filter
+cub unit update cost-optimizer-deployment \
   --space fluffy-kitten-dev \
-  --where "Labels.app = 'cost-optimizer'" \
   --patch '{"spec": {"replicas": 2}}'
 ```
 
@@ -216,13 +220,15 @@ Test optimizations in dev, then promote:
 bin/apply-all dev
 # Monitor for 24 hours...
 
-# Promote to staging
-cub unit update --patch --upgrade --space fluffy-kitten-staging
+# Promote to staging using push-upgrade
+cub unit push-upgrade cost-optimizer-deployment \
+  --space fluffy-kitten-base
 bin/apply-all staging
 # Monitor for 3 days...
 
-# Promote to prod with confidence
-cub unit update --patch --upgrade --space fluffy-kitten-prod
+# Continue promotion chain
+cub unit push-upgrade cost-optimizer-deployment \
+  --space fluffy-kitten-staging
 bin/apply-all prod
 ```
 
@@ -236,9 +242,9 @@ cub unit update cost-optimizer-deployment \
   --space fluffy-kitten-prod \
   --data @previous-config.yaml
 
-# Or use ConfigHub's revision history to restore
+# View unit configuration
 cub unit get cost-optimizer-deployment \
-  --space fluffy-kitten-prod --json
+  --space fluffy-kitten-prod --format json
 ```
 
 ## Real-World Cost Optimization Flow
@@ -255,7 +261,7 @@ app.RunWithInformers(func() error {
     // Apply recommended configurations via ConfigHub
     if recommendations.ShouldOptimize {
         // Update deployment configuration in ConfigHub
-        cub.UpdateUnit("cost-optimizer-deployment",
+        cub.UpdateUnit(spaceID, unitID,
             updatedConfig)
     }
 
