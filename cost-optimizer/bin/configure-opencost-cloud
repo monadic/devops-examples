@@ -1,0 +1,193 @@
+#!/bin/bash
+# Configure OpenCost cloud provider settings
+# Environment-specific configs for AWS/GCP/Azure cost data
+
+set -e
+
+# Colors for output
+RED='\033[0;31m'
+GREEN='\033[0;32m'
+YELLOW='\033[1;33m'
+NC='\033[0m' # No Color
+
+echo "☁️ Configuring OpenCost Cloud Provider Settings"
+echo "="*50
+
+# Get project from file
+if [ ! -f .cub-opencost-project ]; then
+    echo -e "${RED}Error: .cub-opencost-project not found. Run install-opencost-base first${NC}"
+    exit 1
+fi
+
+project=$(cat .cub-opencost-project)
+echo -e "${GREEN}Using project: $project${NC}"
+
+# Function to create cloud config secret
+create_cloud_config() {
+    local env=$1
+    local provider=$2
+    local pricing=$3
+    local discount=$4
+    
+    echo -e "\nConfiguring $env environment for $provider..."
+    
+    # Create secret unit for cloud credentials
+    cat > /tmp/opencost-cloud-config-$env.yaml <<EOF
+apiVersion: v1
+kind: Secret
+metadata:
+  name: opencost-cloud-config
+  namespace: opencost
+  labels:
+    app: opencost
+    env: $env
+    provider: $provider
+type: Opaque
+stringData:
+  cloud-provider: "$provider"
+  pricing-model: "$pricing"
+  discount-rate: "$discount"
+  # These will be populated with real credentials
+  # For AWS: Cost Explorer API key
+  # For GCP: BigQuery dataset info
+  # For Azure: Cost Management API credentials
+  api-key: ""
+  project-id: ""
+EOF
+    
+    cub unit create opencost-cloud-config-$env /tmp/opencost-cloud-config-$env.yaml \
+      --space $project-$env \
+      --label type=config \
+      --label provider=$provider \
+      --label env=$env || true
+      
+    # Create ConfigMap for OpenCost configuration
+    cat > /tmp/opencost-configmap-$env.yaml <<EOF
+apiVersion: v1
+kind: ConfigMap
+metadata:
+  name: opencost-config
+  namespace: opencost
+  labels:
+    app: opencost
+    env: $env
+data:
+  # Cloud provider configuration
+  CLOUD_PROVIDER: "$provider"
+  
+  # AWS-specific settings
+  AWS_REGION: "us-east-1"
+  AWS_PRICING_MODE: "$pricing"
+  
+  # GCP-specific settings
+  GCP_REGION: "us-central1"
+  GCP_BILLING_DATASET: "billing_dataset"
+  
+  # Azure-specific settings
+  AZURE_SUBSCRIPTION_ID: ""
+  AZURE_TENANT_ID: ""
+  
+  # Cost allocation settings
+  ALLOCATION_INTERVAL: "1h"
+  IDLE_COST_ALLOCATION: "proportional"
+  SHARE_NAMESPACE_COSTS: "true"
+  SHARE_CLUSTER_COSTS: "true"
+  SHARE_LABELS: "team,department,project"
+  
+  # Prometheus configuration
+  PROMETHEUS_SERVER_ENDPOINT: "http://prometheus-server.prometheus-system.svc.cluster.local:80"
+  
+  # UI configuration
+  UI_ENABLED: "true"
+  UI_PUBLIC_URL: "http://opencost.$env.local:9090"
+  
+  # Discount rate for this environment
+  DISCOUNT_RATE: "$discount"
+EOF
+    
+    cub unit create opencost-configmap-$env /tmp/opencost-configmap-$env.yaml \
+      --space $project-$env \
+      --label type=config \
+      --label provider=$provider \
+      --label env=$env || true
+    
+    echo -e "${GREEN}✓ Configured $env for $provider${NC}"
+}
+
+# Configure each environment
+echo -e "\n${YELLOW}Creating environment-specific cloud configurations...${NC}"
+
+# Dev environment - on-demand pricing, no discounts
+create_cloud_config "dev" "aws" "on-demand" "0"
+
+# Staging environment - mix of on-demand and reserved
+create_cloud_config "staging" "aws" "mixed" "0.15"
+
+# Production environment - enterprise discounts
+create_cloud_config "prod" "aws" "enterprise" "0.25"
+
+# Add cloud configs to Sets
+echo -e "\n${YELLOW}Adding cloud configs to Sets...${NC}"
+
+cub set add-unit cloud-configs opencost-cloud-config-dev --space $project-sets || true
+cub set add-unit cloud-configs opencost-cloud-config-staging --space $project-sets || true
+cub set add-unit cloud-configs opencost-cloud-config-prod --space $project-sets || true
+
+echo -e "${GREEN}✓ Added cloud configs to Sets${NC}"
+
+# Create patch for multi-cloud support
+echo -e "\n${YELLOW}Creating multi-cloud patch units...${NC}"
+
+# GCP variant patch
+cat > /tmp/opencost-gcp-patch.yaml <<EOF
+apiVersion: v1
+kind: ConfigMap
+metadata:
+  name: opencost-gcp-override
+  namespace: opencost
+data:
+  CLOUD_PROVIDER: "gcp"
+  GCP_PROJECT_ID: "your-project-id"
+  GCP_BILLING_DATASET: "cloud_billing_export"
+  GCP_BILLING_TABLE: "gcp_billing_export"
+EOF
+
+cub unit create opencost-gcp-patch /tmp/opencost-gcp-patch.yaml \
+  --space $project-base \
+  --label type=patch \
+  --label provider=gcp || true
+
+# Azure variant patch
+cat > /tmp/opencost-azure-patch.yaml <<EOF
+apiVersion: v1
+kind: ConfigMap
+metadata:
+  name: opencost-azure-override
+  namespace: opencost
+data:
+  CLOUD_PROVIDER: "azure"
+  AZURE_SUBSCRIPTION_ID: "your-subscription-id"
+  AZURE_TENANT_ID: "your-tenant-id"
+  AZURE_CLIENT_ID: "your-client-id"
+EOF
+
+cub unit create opencost-azure-patch /tmp/opencost-azure-patch.yaml \
+  --space $project-base \
+  --label type=patch \
+  --label provider=azure || true
+
+echo -e "${GREEN}✓ Created multi-cloud patches${NC}"
+
+echo -e "\n${GREEN}🎉 OpenCost cloud configuration complete!${NC}"
+echo -e "\nCloud configurations created:"
+echo "  - dev: AWS on-demand pricing, no discounts"
+echo "  - staging: AWS mixed pricing, 15% discount"
+echo "  - prod: AWS enterprise pricing, 25% discount"
+echo -e "\nMulti-cloud patches available:"
+echo "  - opencost-gcp-patch: Switch to GCP billing"
+echo "  - opencost-azure-patch: Switch to Azure billing"
+echo -e "\nTo use different cloud provider:"
+echo "  cub unit patch opencost-configmap-dev --patch-from opencost-gcp-patch"
+echo -e "\nNext steps:"
+echo "1. Add real cloud credentials to Secret units"
+echo "2. Run ./bin/apply-opencost dev to deploy"

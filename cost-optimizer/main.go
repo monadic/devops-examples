@@ -23,6 +23,7 @@ type CostOptimizer struct {
 	spaceID       uuid.UUID
 	criticalSetID uuid.UUID
 	dashboard     *Dashboard
+	resources     []ResourceUsage
 }
 
 // CostAnalysis represents the complete cost analysis
@@ -88,6 +89,12 @@ type ResourceUsage struct {
 	MemUsed        int64   `json:"memory_used_bytes"`
 	MemUtilization float64 `json:"memory_utilization_percent"`
 	MonthlyCost    float64 `json:"monthly_cost_estimate"`
+
+	// OpenCost fields
+	CPUCost     float64 `json:"cpu_cost_usd,omitempty"`
+	MemoryCost  float64 `json:"memory_cost_usd,omitempty"`
+	StorageCost float64 `json:"storage_cost_usd,omitempty"`
+	GPUCost     float64 `json:"gpu_cost_usd,omitempty"`
 }
 
 type NamespaceInfo struct {
@@ -267,12 +274,19 @@ func (c *CostOptimizer) optimizeCosts() error {
 	if err != nil {
 		return fmt.Errorf("gather resource usage: %w", err)
 	}
+	c.resources = resourceUsage
 
 	c.app.Logger.Printf("📊 Analyzed %d resources across cluster (metrics: %s)",
 		len(resourceUsage), map[bool]string{true: "real", false: "simulated"}[usingRealMetrics])
 
-	// 2. Analyze with Claude AI for intelligent recommendations
-	analysis, err := c.analyzeWithClaude(resourceUsage, usingRealMetrics)
+	// 2. Try to integrate with OpenCost for real cost data
+	if err := c.IntegrateWithOpenCost(); err != nil {
+		c.app.Logger.Printf("⚠️  OpenCost integration failed, using estimates: %v", err)
+		// Continue with estimated costs
+	}
+
+	// 3. Analyze with Claude AI for intelligent recommendations
+	analysis, err := c.analyzeWithClaude(c.resources, usingRealMetrics)
 	if err != nil {
 		return fmt.Errorf("AI analysis: %w", err)
 	}
