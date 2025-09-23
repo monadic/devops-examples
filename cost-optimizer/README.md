@@ -2,6 +2,46 @@
 
 AI-powered Kubernetes cost optimization that leverages ConfigHub's unique capabilities for continuous, multi-environment cost management.
 
+## 🆕 OpenCost Integration
+
+The cost optimizer now integrates with [OpenCost](https://www.opencost.io/) (CNCF Incubating project) for real-time, accurate cloud cost data instead of estimates.
+
+### Quick Setup
+
+```bash
+# 1. Configure OpenCost integration (creates ConfigHub unit)
+./bin/configure-opencost true   # Enable OpenCost
+# or
+./bin/configure-opencost false  # Disable OpenCost
+
+# 2. Install OpenCost (if not already deployed)
+./bin/install-opencost-base     # Create ConfigHub units
+./bin/install-opencost-envs     # Set up environments
+./bin/apply-opencost dev        # Deploy to Kubernetes
+
+# 3. Run cost optimizer - it will auto-detect OpenCost
+ENABLE_OPENCOST=true ./cost-optimizer  # Force enable
+ENABLE_OPENCOST=false ./cost-optimizer # Force disable
+./cost-optimizer                       # Auto-detect from ConfigHub
+```
+
+### How OpenCost Integration Works
+
+1. **ConfigHub Configuration**: The `configure-opencost` script creates an `opencost-config` unit in your ConfigHub space
+2. **Auto-Detection**: Cost optimizer checks ConfigHub for the config unit on startup
+3. **Fallback**: If OpenCost is unavailable, it falls back to AWS pricing estimates
+4. **Environment Variables**:
+   - `ENABLE_OPENCOST=false` to disable (default: enabled)
+   - `OPENCOST_URL=http://...` to override endpoint
+
+### OpenCost Deployment Pattern
+
+OpenCost follows the same DevOps-as-Apps pattern:
+- Deployed via ConfigHub units (not kubectl)
+- Environment hierarchy: base → dev → staging → prod
+- Push-upgrade for promotion
+- Persistent monitoring app, not ephemeral workflow
+
 ## Why ConfigHub Makes This Better Than DIY or Agentic DevOps Workflow Tools
 
 ### vs DIY Cost Scripts

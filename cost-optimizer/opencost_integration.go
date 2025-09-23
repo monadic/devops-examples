@@ -133,9 +133,21 @@ func extractUtilization(props map[string]interface{}, key string) float64 {
 // IntegrateWithOpenCost enhances cost optimizer with real OpenCost data
 func (c *CostOptimizer) IntegrateWithOpenCost() error {
 	fmt.Println("\n🔌 Integrating with OpenCost for real cost data...")
-	
+
+	// First check ConfigHub for OpenCost configuration
+	opencostConfig, err := c.getOpenCostConfig()
+	if err != nil {
+		fmt.Printf("[OpenCost] No configuration found in ConfigHub: %v\n", err)
+	}
+
 	// Check if OpenCost is available
 	opencostURL := os.Getenv("OPENCOST_URL")
+	if opencostURL == "" && opencostConfig != nil {
+		// Use URL from ConfigHub config if available
+		if url, ok := opencostConfig["url"].(string); ok {
+			opencostURL = url
+		}
+	}
 	if opencostURL == "" {
 		// Try to detect OpenCost service in cluster
 		opencostURL = "http://opencost.opencost.svc.cluster.local:9003"
@@ -259,5 +271,31 @@ func (c *CostOptimizer) storeOpenCostData(data *OpenCostResponse) error {
 	
 	fmt.Printf("[ConfigHub] ✓ Stored OpenCost data as unit: %s\n", unitName)
 	return nil
+}
+
+// getOpenCostConfig retrieves OpenCost configuration from ConfigHub
+func (c *CostOptimizer) getOpenCostConfig() (map[string]interface{}, error) {
+	// Try to get OpenCost config unit from ConfigHub
+	units, err := c.app.Cub.ListUnits(sdk.ListUnitsParams{
+		SpaceID: c.spaceID,
+	})
+	if err != nil {
+		return nil, fmt.Errorf("failed to list units: %v", err)
+	}
+
+	// Look for OpenCost config unit
+	for _, unit := range units {
+		if unit.Slug == "opencost-config" {
+			var config map[string]interface{}
+			if err := json.Unmarshal([]byte(unit.Data), &config); err != nil {
+				return nil, fmt.Errorf("failed to parse config: %v", err)
+			}
+			fmt.Printf("[ConfigHub] ✓ Found OpenCost config: enabled=%v, url=%v\n",
+				config["enabled"], config["url"])
+			return config, nil
+		}
+	}
+
+	return nil, fmt.Errorf("opencost-config unit not found")
 }
 

@@ -279,10 +279,14 @@ func (c *CostOptimizer) optimizeCosts() error {
 	c.app.Logger.Printf("📊 Analyzed %d resources across cluster (metrics: %s)",
 		len(resourceUsage), map[bool]string{true: "real", false: "simulated"}[usingRealMetrics])
 
-	// 2. Try to integrate with OpenCost for real cost data
-	if err := c.IntegrateWithOpenCost(); err != nil {
-		c.app.Logger.Printf("⚠️  OpenCost integration failed, using estimates: %v", err)
-		// Continue with estimated costs
+	// 2. Try to integrate with OpenCost for real cost data (if enabled)
+	if os.Getenv("ENABLE_OPENCOST") != "false" {
+		if err := c.IntegrateWithOpenCost(); err != nil {
+			c.app.Logger.Printf("⚠️  OpenCost integration failed, using estimates: %v", err)
+			// Continue with estimated costs
+		}
+	} else {
+		c.app.Logger.Println("ℹ️  OpenCost integration disabled, using estimated costs")
 	}
 
 	// 3. Analyze with Claude AI for intelligent recommendations

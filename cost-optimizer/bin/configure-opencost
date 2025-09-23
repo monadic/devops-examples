@@ -1,0 +1,132 @@
+#!/bin/bash
+# Configure OpenCost integration in cost optimizer's ConfigHub space
+# This creates a config unit that the cost optimizer reads
+
+set -e
+
+# Colors for output
+RED='\033[0;31m'
+GREEN='\033[0;32m'
+YELLOW='\033[1;33m'
+BLUE='\033[0;34m'
+NC='\033[0m' # No Color
+
+echo "⚙️  Configuring OpenCost Integration for Cost Optimizer"
+echo "="*50
+
+# Check arguments
+ENABLE=${1:-true}
+OPENCOST_URL=${2:-"http://opencost.opencost.svc.cluster.local:9003"}
+
+echo "Configuration:"
+echo "  - Enabled: $ENABLE"
+echo "  - OpenCost URL: $OPENCOST_URL"
+
+# Get cost optimizer space ID from environment or file
+if [ -n "$CONFIGHUB_SPACE_ID" ]; then
+    SPACE_ID=$CONFIGHUB_SPACE_ID
+    echo -e "${GREEN}✓ Using space ID from environment: $SPACE_ID${NC}"
+elif [ -f .cub-project ]; then
+    PROJECT=$(cat .cub-project)
+    # Try to get space ID for the project
+    SPACE_ID=$(cub space get $PROJECT --format json | jq -r '.id' 2>/dev/null || echo "")
+    if [ -z "$SPACE_ID" ]; then
+        echo -e "${RED}Error: Could not find space $PROJECT${NC}"
+        exit 1
+    fi
+    echo -e "${GREEN}✓ Using space from .cub-project: $PROJECT${NC}"
+else
+    echo -e "${RED}Error: No ConfigHub space specified${NC}"
+    echo "Set CONFIGHUB_SPACE_ID or create .cub-project file"
+    exit 1
+fi
+
+# Create OpenCost configuration unit
+echo -e "\n${YELLOW}Creating OpenCost configuration unit...${NC}"
+
+cat > /tmp/opencost-config.json <<EOF
+{
+  "enabled": $ENABLE,
+  "url": "$OPENCOST_URL",
+  "integration": {
+    "type": "api",
+    "window": "1d",
+    "aggregate": "namespace",
+    "fallback_to_estimates": true
+  },
+  "deployment": {
+    "installed": false,
+    "install_script": "./bin/install-opencost-base",
+    "namespace": "opencost",
+    "service_name": "opencost"
+  },
+  "features": {
+    "real_time_costs": true,
+    "carbon_emissions": true,
+    "gpu_costs": true,
+    "storage_costs": true
+  },
+  "updated_at": "$(date -u +%Y-%m-%dT%H:%M:%SZ)"
+}
+EOF
+
+# Check if config unit already exists
+if cub unit get opencost-config --space $SPACE_ID &>/dev/null; then
+    echo "Updating existing OpenCost config unit..."
+    cub unit update opencost-config --space $SPACE_ID \
+      --data "@/tmp/opencost-config.json" || {
+        echo -e "${RED}Failed to update config unit${NC}"
+        exit 1
+    }
+    echo -e "${GREEN}✓ Updated OpenCost config unit${NC}"
+else
+    echo "Creating new OpenCost config unit..."
+    cub unit create opencost-config /tmp/opencost-config.json \
+      --space $SPACE_ID \
+      --label type=config \
+      --label component=opencost || {
+        echo -e "${RED}Failed to create config unit${NC}"
+        exit 1
+    }
+    echo -e "${GREEN}✓ Created OpenCost config unit${NC}"
+fi
+
+# Show how to install OpenCost if not installed
+if [ "$ENABLE" = "true" ]; then
+    echo -e "\n${BLUE}OpenCost Integration Status:${NC}"
+    
+    # Check if OpenCost is running in cluster
+    if kubectl get deployment opencost -n opencost &>/dev/null; then
+        echo -e "${GREEN}✓ OpenCost is deployed in cluster${NC}"
+        
+        # Get service endpoint
+        SERVICE_IP=$(kubectl get svc opencost -n opencost -o jsonpath='{.spec.clusterIP}' 2>/dev/null || echo "")
+        if [ -n "$SERVICE_IP" ]; then
+            echo "  Service endpoint: http://$SERVICE_IP:9003"
+        fi
+    else
+        echo -e "${YELLOW}⚠ OpenCost is not deployed${NC}"
+        echo -e "\nTo install OpenCost:"
+        echo "  1. ./bin/install-opencost-base    # Create ConfigHub units"
+        echo "  2. ./bin/install-opencost-envs    # Set up environments"
+        echo "  3. ./bin/apply-opencost dev       # Deploy to cluster"
+    fi
+fi
+
+echo -e "\n${GREEN}✅ OpenCost configuration complete!${NC}"
+echo -e "\nUsage:"
+echo "  - Enable:  ./bin/configure-opencost true"
+echo "  - Disable: ./bin/configure-opencost false"
+echo "  - Custom:  ./bin/configure-opencost true http://opencost:9003"
+echo -e "\nThe cost optimizer will:"
+if [ "$ENABLE" = "true" ]; then
+    echo "  1. Check for OpenCost at: $OPENCOST_URL"
+    echo "  2. Use real costs if available"
+    echo "  3. Fall back to estimates if OpenCost is unavailable"
+else
+    echo "  1. Skip OpenCost integration"
+    echo "  2. Use estimated costs based on AWS pricing"
+fi
+
+# Clean up
+rm -f /tmp/opencost-config.json
