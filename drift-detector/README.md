@@ -2,7 +2,7 @@
 
 Event-driven Kubernetes configuration drift detection that leverages ConfigHub's unique capabilities for continuous compliance across multi-environment deployments.
 
-## Why ConfigHub Makes This Better Than DIY or Cased
+## Why ConfigHub Makes This Better Than DIY or Agentic DevOps Workflow Tools
 
 ### vs DIY Drift Scripts
 - **Persistent Drift History**: Every drift is stored as a ConfigHub unit (not lost in logs)
@@ -10,7 +10,7 @@ Event-driven Kubernetes configuration drift detection that leverages ConfigHub's
 - **Auto-Remediation**: Apply corrections atomically with ConfigHub rollback
 - **Compliance Audit**: Complete who/what/when/why trail for every change
 
-### vs Cased Workflows
+### vs Agentic DevOps Tools
 - **Event-Driven**: Uses Kubernetes informers (instant detection vs polling)
 - **Stateful Tracking**: Builds drift patterns over time in ConfigHub Sets
 - **Bulk Correction**: Fix drift across ALL environments with one filter
@@ -665,9 +665,9 @@ $ ./drift-detector
 - Proper error handling and retries
 - Kubernetes RBAC and service accounts
 
-## Comparison with Cased
+## Comparison with Agentic DevOps Workflow Tools
 
-| Aspect | Drift Detector (DevOps as Apps) | Cased Approach |
+| Aspect | Drift Detector (DevOps as Apps) | Agentic Workflow Approach |
 |--------|----------------------------------|----------------|
 | **Architecture** | Persistent Kubernetes application | Ephemeral workflow |
 | **Event Model** | Event-driven informers | Triggered execution |

@@ -154,7 +154,7 @@ cub unit clone successful-optimizations \
 - ❌ No AI memory between runs
 - ✅ ConfigHub: Full state management with queryable history
 
-### vs Cased/Temporal Workflows
+### vs Agentic DevOps Workflow Tools
 - ❌ Ephemeral execution, no continuous monitoring
 - ❌ No native config management
 - ❌ Complex workflow definitions

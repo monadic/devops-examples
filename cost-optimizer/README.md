@@ -2,7 +2,7 @@
 
 AI-powered Kubernetes cost optimization that leverages ConfigHub's unique capabilities for continuous, multi-environment cost management.
 
-## Why ConfigHub Makes This Better Than DIY or Cased
+## Why ConfigHub Makes This Better Than DIY or Agentic DevOps Workflow Tools
 
 ### vs DIY Cost Scripts
 - **Persistent State**: ConfigHub tracks all cost analyses in versioned units (not lost in logs)
@@ -10,7 +10,7 @@ AI-powered Kubernetes cost optimization that leverages ConfigHub's unique capabi
 - **Audit Trail**: Every recommendation and application is tracked with who/what/when
 - **Rollback**: Instant rollback of any optimization that causes issues
 
-### vs Cased Workflows
+### vs Agentic DevOps Tools
 - **Continuous Monitoring**: Runs 24/7 with informers (not just when triggered)
 - **Stateful Analysis**: Builds cost trends over time in ConfigHub Sets
 - **Bulk Operations**: Apply optimizations across ALL environments with one command
@@ -278,7 +278,7 @@ Low-risk optimizations can be auto-applied:
 
 ## ConfigHub Advantages Summary
 
-| Feature | DIY Script | Cased Workflow | ConfigHub + Cost Optimizer |
+| Feature | DIY Script | Agentic Workflow | ConfigHub + Cost Optimizer |
 |---------|------------|----------------|---------------------------|
 | **Execution Model** | Cron job | Triggered workflow | Continuous with informers |
 | **State Management** | Log files | Stateless | Versioned units in ConfigHub |
@@ -331,4 +331,4 @@ cub set get critical-costs --space $(cat .cub-project)-base
 
 ---
 
-**Built with ConfigHub** • **Powered by Claude AI** • **Better than DIY or Cased**
+**Built with ConfigHub** • **Powered by Claude AI** • **Better than DIY or Agentic DevOps Tools**

@@ -49,7 +49,7 @@ echo -e "${BLUE}━━━━━━━━━━━━━━━━━━━━━�
 echo -e "${CYAN}🔧 Step 2: The Solution - DevOps as Apps${NC}"
 echo -e "${BLUE}━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━${NC}"
 echo ""
-echo "Instead of ephemeral workflows (like Cased.com), we build"
+echo "Instead of ephemeral workflows (like agentic devops tools), we build"
 echo "persistent applications that:"
 echo ""
 echo "  ✅ Run continuously (not triggered)"

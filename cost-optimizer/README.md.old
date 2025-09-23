@@ -108,7 +108,7 @@ kubectl logs -f deployment/cost-optimizer -n devops-apps
 - **Integrated**: Direct Kubernetes API access
 - **Versioned**: Can be rolled back like any app
 
-### Workflow Approach (e.g., Cased)
+### Workflow Approach (e.g., Agentic DevOps Tools)
 - **Triggered**: Runs on schedule or event
 - **Stateless**: No memory between runs
 - **Simple**: Pre-built analysis

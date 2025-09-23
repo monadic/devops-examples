@@ -183,7 +183,7 @@ This demonstrates that **DevOps automation should be built as applications**, no
 
 ## Comparison with Workflow Approach
 
-| Workflow (Cased) | App (Our Approach) |
+| Workflow (Agentic Tools) | App (Our Approach) |
 |-----------------|-------------------|
 | Triggered by event | Runs continuously |
 | Stateless | Stateful |

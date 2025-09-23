@@ -4,7 +4,7 @@ Production-ready DevOps automation applications built using the ConfigHub SDK. T
 
 ## 🚀 Overview
 
-This repository demonstrates the **DevOps as Apps** pattern - building DevOps automation as persistent, event-driven Kubernetes applications instead of ephemeral workflows (like Cased.com).
+This repository demonstrates the **DevOps as Apps** pattern - building DevOps automation as persistent, event-driven Kubernetes applications instead of ephemeral workflows (like agentic devops workflow tools).
 
 ### Key Principles
 
@@ -117,9 +117,9 @@ These apps use:
 - **Claude AI** for intelligent analysis
 - **Push-upgrade pattern** for change propagation
 
-## 🆚 Why Not Cased.com?
+## 🆚 Why Not Agentic DevOps Workflow Tools?
 
-| Feature | DevOps as Apps | Cased.com |
+| Feature | DevOps as Apps | Agentic Workflow Tools |
 |---------|---------------|-----------|
 | **Model** | Persistent applications | Ephemeral workflows |
 | **Architecture** | Event-driven (informers) | Triggered execution |
