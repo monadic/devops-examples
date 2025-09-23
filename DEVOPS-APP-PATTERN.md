@@ -40,8 +40,12 @@ spec:
       - name: drift-detector
         image: drift-detector:latest
         env:
-        - name: CLAUDE_API_KEY
-          value: sk-...
+        - name: CLAUDE_API_KEY      # REQUIRED by default
+          value: sk-ant-...
+        - name: CLAUDE_DEBUG_LOGGING # Default: true
+          value: "true"
+        - name: CUB_TOKEN           # Auto-obtained from cub CLI
+          value: eyJ...
 ```
 
 ### 2. Both Run Continuously

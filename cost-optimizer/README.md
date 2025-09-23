@@ -67,13 +67,15 @@ kubectl port-forward svc/cost-optimizer-dashboard 8081:8081 -n devops-apps
 ## Features
 
 ### 🔍 Cost Analysis
+- **Real-time metrics** from Kubernetes metrics-server (not simulated)
 - **Resource utilization analysis** across all deployments
-- **Monthly cost estimation** based on CPU, memory, storage usage
+- **Monthly cost estimation** based on actual CPU, memory, storage usage
 - **Utilization thresholds** to identify over-provisioned resources
 - **Cluster-wide summary** statistics
 
 ### 🤖 AI Recommendations
 - **Claude AI-powered analysis** with intelligent suggestions
+- **Full request/response logging** in `logs/claude-analysis-latest.log`
 - **Risk-based categorization** (low/medium/high)
 - **Priority scoring** for maximum impact
 - **Implementation guidance** for each recommendation
@@ -83,6 +85,7 @@ kubectl port-forward svc/cost-optimizer-dashboard 8081:8081 -n devops-apps
 - **Interactive recommendations** with savings estimates
 - **Resource breakdown** by compute, memory, storage, network
 - **Cluster health metrics** and utilization trends
+- **Claude API logs viewer** - direct link to session history
 
 ### ⚙️ ConfigHub Management
 - **Automatic space creation** with unique prefixes
@@ -96,7 +99,7 @@ kubectl port-forward svc/cost-optimizer-dashboard 8081:8081 -n devops-apps
 ```bash
 # Claude AI (optional - falls back to basic analysis)
 CLAUDE_API_KEY="your-claude-api-key"
-CLAUDE_DEBUG_LOG="true"              # Enable full request/response logging
+CLAUDE_DEBUG_LOGGING="true"          # Enable full request/response logging
 
 # ConfigHub (optional - runs in local mode without)
 CUB_TOKEN="your-confighub-token"
@@ -108,9 +111,9 @@ NAMESPACE="devops-apps"              # Target namespace
 ```
 
 ### Cost Calculation Settings
-The optimizer uses realistic cloud pricing:
-- **CPU**: $0.0416 per vCPU hour
-- **Memory**: $0.00456 per GB hour
+The optimizer uses realistic AWS EKS pricing (m5 instance family):
+- **CPU**: $0.024 per vCPU hour ($17.28/month per core)
+- **Memory**: $0.006 per GB hour ($4.32/month per GB)
 - **Storage**: $0.10 per GB month
 - **Network**: $0.09 per GB transfer
 
@@ -119,7 +122,7 @@ The optimizer uses realistic cloud pricing:
 ### Development
 ```bash
 # Quick local development
-export CLAUDE_DEBUG_LOG=true
+export CLAUDE_DEBUG_LOGGING=true
 ./cost-optimizer
 ```
 

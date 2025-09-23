@@ -11,8 +11,24 @@ This repository demonstrates the **DevOps as Apps** pattern - building DevOps au
 ✅ **Persistent Applications** - Long-running apps, not one-shot workflows
 ✅ **Event-Driven** - Kubernetes informers, not polling
 ✅ **ConfigHub Native** - Uses Sets, Filters, and push-upgrade patterns
-✅ **AI-Powered** - Claude integration for intelligent analysis
+✅ **AI-Powered** - Claude enabled by default for intelligent analysis
 ✅ **Production Ready** - Health checks, metrics, proper error handling
+
+### 🤖 Claude AI Integration (NEW)
+
+All examples now include **Claude AI by default** with:
+- **Automatic setup** - Prompts for API key if not provided
+- **Debug logging** - See all prompts and responses
+- **Easy disable** - `ENABLE_CLAUDE=false ./run.sh`
+- **Fallback mode** - Works without Claude using basic analysis
+
+```bash
+# Quick setup
+cp .env.example .env
+# Add your CLAUDE_API_KEY to .env
+cd any-example/
+./run.sh  # Handles everything automatically
+```
 
 ## 📦 Available Apps
 
@@ -49,7 +65,7 @@ Manages application upgrades across environments.
 - Go 1.21+
 - ConfigHub account ([sign up](https://confighub.com))
 - Kubernetes cluster (or [Kind](https://kind.sigs.k8s.io/) for testing)
-- (Optional) Claude API key for AI features
+- Claude API key ([get one](https://console.anthropic.com/settings/keys)) - **Required by default**
 
 ### Installation
 

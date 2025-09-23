@@ -109,10 +109,11 @@ func (d *Dashboard) handleDashboard(w http.ResponseWriter, r *http.Request) {
     <div class="container">
         <div class="header">
             <h1>💰 Cost Optimization Dashboard</h1>
-            <p>AI-powered Kubernetes cost analysis and recommendations</p>
             {{if .Analysis}}
+            <p>Cluster: <strong>{{.Analysis.ClusterSummary.ClusterName}}</strong> | Context: <strong>{{.Analysis.ClusterSummary.ClusterContext}}</strong> | ConfigHub Space: <strong>{{.Analysis.ConfigHubSpace}}</strong></p>
             <div class="status running">✅ Active - Last updated: {{.Analysis.Timestamp.Format "2006-01-02 15:04:05"}}</div>
             {{else}}
+            <p>AI-powered Kubernetes cost analysis and recommendations</p>
             <div class="status error">⏳ Waiting for first analysis...</div>
             {{end}}
         </div>
@@ -189,6 +190,46 @@ func (d *Dashboard) handleDashboard(w http.ResponseWriter, r *http.Request) {
         </div>
 
         <div class="section">
+            <h2>📊 Resource Details & Metrics</h2>
+            {{if .Analysis.ResourceDetails}}
+            <table style="width: 100%; border-collapse: collapse;">
+                <thead>
+                    <tr style="background: #f0f0f0;">
+                        <th style="padding: 8px; text-align: left;">Resource</th>
+                        <th style="padding: 8px; text-align: left;">Namespace</th>
+                        <th style="padding: 8px; text-align: center;">Replicas</th>
+                        <th style="padding: 8px; text-align: center;">CPU Requested</th>
+                        <th style="padding: 8px; text-align: center;">CPU Used</th>
+                        <th style="padding: 8px; text-align: center;">CPU Util %</th>
+                        <th style="padding: 8px; text-align: center;">Memory Requested</th>
+                        <th style="padding: 8px; text-align: center;">Memory Used</th>
+                        <th style="padding: 8px; text-align: center;">Mem Util %</th>
+                        <th style="padding: 8px; text-align: right;">Monthly Cost</th>
+                    </tr>
+                </thead>
+                <tbody>
+                    {{range .Analysis.ResourceDetails}}
+                    <tr style="border-bottom: 1px solid #e0e0e0;">
+                        <td style="padding: 8px;">{{.Name}}</td>
+                        <td style="padding: 8px;">{{.Namespace}}</td>
+                        <td style="padding: 8px; text-align: center;">{{.Replicas}}</td>
+                        <td style="padding: 8px; text-align: center;">{{.CPURequested}}m</td>
+                        <td style="padding: 8px; text-align: center;">{{.CPUUsed}}m</td>
+                        <td style="padding: 8px; text-align: center; color: {{if lt .CPUUtilization 30.0}}#d73a49{{else if lt .CPUUtilization 70.0}}#fb8500{{else}}#30a14e{{end}}">{{printf "%.1f" .CPUUtilization}}%</td>
+                        <td style="padding: 8px; text-align: center;">{{.MemRequested}}B</td>
+                        <td style="padding: 8px; text-align: center;">{{.MemUsed}}B</td>
+                        <td style="padding: 8px; text-align: center; color: {{if lt .MemUtilization 30.0}}#d73a49{{else if lt .MemUtilization 70.0}}#fb8500{{else}}#30a14e{{end}}">{{printf "%.1f" .MemUtilization}}%</td>
+                        <td style="padding: 8px; text-align: right; font-weight: 600;">${{printf "%.2f" .MonthlyCost}}</td>
+                    </tr>
+                    {{end}}
+                </tbody>
+            </table>
+            {{else}}
+            <div class="no-data">No resource details available.</div>
+            {{end}}
+        </div>
+
+        <div class="section">
             <h2>🏗️ Cluster Summary</h2>
             <div class="breakdown-grid">
                 <div class="breakdown-item">
@@ -208,6 +249,61 @@ func (d *Dashboard) handleDashboard(w http.ResponseWriter, r *http.Request) {
                     <div class="breakdown-label">Avg CPU Util</div>
                 </div>
             </div>
+        </div>
+
+        <div class="section">
+            <h2>🔍 ConfigHub Verification</h2>
+            <p><strong>Space ID:</strong> {{.Analysis.ConfigHubSpace}}</p>
+            <p><strong>Cluster Type:</strong> {{.Analysis.ClusterSummary.ClusterType}} | <strong>Version:</strong> {{.Analysis.ClusterSummary.KubernetesVersion}}</p>
+            {{if .Analysis.DataSource}}
+            <div style="margin-top: 15px;">
+                <h3>Data Sources:</h3>
+                <ul style="list-style: none; padding: 0;">
+                    <li>✅ Kubernetes API: <strong>{{.Analysis.DataSource.KubernetesAPI}}</strong></li>
+                    <li>{{if .Analysis.DataSource.MetricsServer}}✅{{else}}⚠️{{end}} Metrics Server: <strong>{{.Analysis.DataSource.MetricsServer}}</strong> {{if not .Analysis.DataSource.MetricsServer}}(Using 50% simulated utilization){{end}}</li>
+                    <li>✅ ConfigHub Sets: <strong>{{.Analysis.DataSource.ConfigHubSets}}</strong></li>
+                    <li>✅ Claude AI: <strong>{{.Analysis.DataSource.ClaudeAI}}</strong></li>
+                </ul>
+                <div style="margin-top: 10px; padding: 10px; background: #e7f3ff; border-left: 4px solid #0066cc; border-radius: 4px;">
+                    <p style="margin: 0; font-size: 0.9rem; color: #003d7a;">
+                        <strong>📝 Claude API Logs:</strong> If you are using Claude API then review prompt and response session history here: <code style="background: #f1f3f5; padding: 2px 4px; border-radius: 3px;">logs/claude-analysis-latest.log</code>
+                    </p>
+                </div>
+            </div>
+            {{end}}
+            <div style="margin-top: 15px; padding: 10px; background: #f8f9fa; border-radius: 6px;">
+                <p style="font-size: 0.9rem; color: #666;">
+                    <strong>Note:</strong> {{if eq .Analysis.ClusterSummary.ClusterType "kind"}}Running on local Kind cluster. Metrics are simulated at 50% utilization. Deploy metrics-server for real metrics.{{else}}Production {{.Analysis.ClusterSummary.ClusterType}} cluster with real metrics.{{end}}
+                </p>
+            </div>
+        </div>
+
+        <div class="section">
+            <h2>📦 Namespace Mapping</h2>
+            {{if .Analysis.ClusterSummary.Namespaces}}
+            <table style="width: 100%; border-collapse: collapse;">
+                <thead>
+                    <tr style="background: #f0f0f0;">
+                        <th style="padding: 8px; text-align: left;">Namespace</th>
+                        <th style="padding: 8px; text-align: left;">Description</th>
+                        <th style="padding: 8px; text-align: center;">Resources</th>
+                        <th style="padding: 8px; text-align: left;">ConfigHub Unit</th>
+                    </tr>
+                </thead>
+                <tbody>
+                    {{range .Analysis.ClusterSummary.Namespaces}}
+                    <tr style="border-bottom: 1px solid #e0e0e0;">
+                        <td style="padding: 8px;">{{.Name}}</td>
+                        <td style="padding: 8px; color: #666;">{{.Description}}</td>
+                        <td style="padding: 8px; text-align: center;">{{.ResourceCount}}</td>
+                        <td style="padding: 8px;">{{if .ConfigHubUnit}}{{.ConfigHubUnit}}{{else}}-{{end}}</td>
+                    </tr>
+                    {{end}}
+                </tbody>
+            </table>
+            {{else}}
+            <p style="color: #666;">No namespace information available.</p>
+            {{end}}
         </div>
         {{else}}
         <div class="no-data">

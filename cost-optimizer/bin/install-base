@@ -33,9 +33,9 @@ cub space create $project-filters --label type=filters --label project=$project
 # Create filters for cost analysis
 echo "Creating filters..."
 cub filter create all Unit --where-field "Space.Labels.project = '$project'" --space $project-filters
-cub filter create high-cost Unit --where-field "Labels.monthly_cost > '100'" --space $project-filters
+cub filter create high-cost Unit --where-field "Labels.cost_level = 'high'" --space $project-filters
 cub filter create critical-recommendations Unit --where-field "Labels.priority = 'high'" --space $project-filters
-cub filter create low-utilization Unit --where-field "Labels.cpu_utilization < '50' AND Labels.memory_utilization < '50'" --space $project-filters
+cub filter create low-utilization Unit --where-field "Labels.utilization = 'low'" --space $project-filters
 
 # Create sets for organizing cost data
 echo "Creating sets..."
