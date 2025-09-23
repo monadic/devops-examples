@@ -1,55 +1,80 @@
-# Drift Detector - DevOps as Apps
+# Drift Detector
 
-A persistent Kubernetes application that continuously monitors for configuration drift and automatically fixes it using ConfigHub's Sets, Filters, and push-upgrade patterns.
+Event-driven Kubernetes configuration drift detection that leverages ConfigHub's unique capabilities for continuous compliance across multi-environment deployments.
 
-## 🎯 Key Innovation: ConfigHub-Driven Deployment
+## Why ConfigHub Makes This Better Than DIY or Cased
 
-Following the global-app pattern, the drift-detector itself is deployed and managed through ConfigHub units, not traditional kubectl/YAML files. This means:
-- **All configuration is in ConfigHub** - deployment, service, RBAC, etc.
-- **Environment hierarchy** - dev → staging → prod with push-upgrade
-- **Version control through ConfigHub** - not just Git
-- **Bulk operations** - deploy all components with one command
+### vs DIY Drift Scripts
+- **Persistent Drift History**: Every drift is stored as a ConfigHub unit (not lost in logs)
+- **Multi-Environment Tracking**: See drift patterns across dev → staging → prod
+- **Auto-Remediation**: Apply corrections atomically with ConfigHub rollback
+- **Compliance Audit**: Complete who/what/when/why trail for every change
 
-## How It Works
+### vs Cased Workflows
+- **Event-Driven**: Uses Kubernetes informers (instant detection vs polling)
+- **Stateful Tracking**: Builds drift patterns over time in ConfigHub Sets
+- **Bulk Correction**: Fix drift across ALL environments with one filter
+- **Self-Healing**: Automatic correction with ConfigHub as source of truth
 
-### Drift Detection Method
+## Scenario
 
-This detector uses **event-driven architecture with Kubernetes informers**:
+The Drift Detector continuously monitors your Kubernetes clusters, comparing live state against ConfigHub units (your source of truth). When drift is detected, it can auto-correct, alert, or track for later remediation - all while maintaining a complete audit trail.
 
-1. **ConfigHub Setup**: Creates Spaces, Sets, and Filters to organize resources
-2. **Kubernetes Informers**: Monitors Add/Update/Delete events in real-time
-3. **Drift Detection**: Compares actual state with expected (ConfigHub units)
-4. **Claude AI Analysis**: Analyzes drift impact and recommends fixes
-5. **Auto-Fix**: Applies fixes using push-upgrade pattern (BulkPatchUnits)
-6. **Monitoring**: Dashboard and ConfigHub UI show real-time status
+### ConfigHub Layout
 
-### Expected Behavior
+The detector uses ConfigHub's space hierarchy to track drift across environments:
 
-When drift is detected, you'll see:
-- **Console logs** showing drift items
-- **Claude AI analysis** with cost/availability impact
-- **ConfigHub resources** created (spaces, sets, filters)
-- **Dashboard updates** with real-time status
-- **Auto-fixes applied** if AUTO_FIX=true
+```mermaid
+graph TD
+base[drift-detector-base] --> dev[drift-detector-dev]
+dev --> staging[drift-detector-staging]
+staging --> prod[drift-detector-prod]
 
-## Architecture
+base -.->|desired state| units[ConfigHub Units]
+dev -.->|actual state| k8s-dev[K8s Dev Cluster]
+staging -.->|actual state| k8s-staging[K8s Staging]
+prod -.->|actual state| k8s-prod[K8s Production]
+
+units -->|compares| detector[Drift Detector]
+k8s-dev -->|monitors| detector
+k8s-staging -->|monitors| detector
+k8s-prod -->|monitors| detector
+
+detector -->|stores| drifts[Drift Records]
+detector -->|groups| sets[ConfigHub Sets]
+detector -->|corrects| k8s-dev
+detector -->|corrects| k8s-staging
+detector -->|corrects| k8s-prod
+```
+
+### Unit Organization
 
 ```
-┌─────────────┐     ┌─────────────┐     ┌─────────────┐
-│  ConfigHub  │────▶│   Detector  │────▶│ Kubernetes  │
-│    Units    │     │   (Go App)  │     │   Cluster   │
-└─────────────┘     └──────┬──────┘     └─────────────┘
-                           │
-                           ▼
-                    ┌─────────────┐
-                    │   Claude    │
-                    │  (Optional) │
-                    └─────────────┘
+{prefix}-drift-detector/
+├── Units (Configurations)
+│   ├── drift-detector-deployment    # App deployment config
+│   ├── drift-detector-service       # Service endpoints
+│   ├── drift-detector-rbac         # Permissions
+│   └── namespace                   # Infrastructure setup
+│
+├── Sets (Grouped Drifts)
+│   ├── critical-drifts             # Security/compliance issues
+│   ├── resource-drifts             # CPU/memory changes
+│   ├── replica-drifts              # Scaling deviations
+│   └── corrected-drifts            # Successfully fixed items
+│
+└── Filters (Smart Queries)
+    ├── security-drift              # RBAC and secret changes
+    ├── production-drift            # Prod-only deviations
+    ├── auto-correctable           # Safe to auto-fix
+    └── manual-review              # Requires human approval
 ```
 
-## Quick Start: ConfigHub-Driven Deployment
+## Setup
 
-### Step 1: Set up ConfigHub Units
+### Configure ConfigHub Structure
+
+First, set up the ConfigHub spaces and base units:
 
 ```bash
 # Install base configurations in ConfigHub
