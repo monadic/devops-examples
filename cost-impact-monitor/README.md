@@ -2,6 +2,46 @@
 
 Real-time cost monitoring for all ConfigHub deployments with trigger-based pre/post deployment analysis.
 
+## Example Use
+
+The cost impact monitor has analyzed your Kind cluster resources:
+
+### **Current Monthly Cost: $50.87**
+
+### **Resource Breakdown:**
+- **backend-api**: 5 replicas = $19.99/month
+- **test-app**: 5 replicas = $21.34/month (⚠️ DRIFTED - should be 2)
+- **complex-app**: 1 replica = $6.54/month (⚠️ DRIFTED - should be 3)
+- **frontend-web**: 1 replica = $3.00/month
+
+### **Drift Cost Impact:**
+1. **test-app over-scaled**: +$12.80/month waste (running 5 instead of 2)
+2. **complex-app under-scaled**: -$13.07/month (running 1 instead of 3)
+3. **ConfigMap misconfigured**: Debug logging increases costs
+
+### **ConfigHub Corrections Needed:**
+```bash
+# Fix test-app drift (save $12.80/month)
+cub unit update deployment-test-app --patch --data '{"spec":{"replicas":2}}'
+
+# Fix complex-app drift (ensure HA)
+cub unit update deployment-complex-app --patch --data '{"spec":{"replicas":3}}'
+
+# Fix ConfigMap drift
+cub unit update configmap-app-config --patch --data '{"data":{"log_level":"info"}}'
+```
+
+### **Additional Savings Opportunities:**
+- Reduce backend-api from 5→3 replicas: **Save $8.00/month**
+- Right-size test-app after fixing drift: **Save $8.54/month**
+
+### **Key Insights:**
+1. **Total potential savings**: $21.34/month (42% reduction)
+2. **Drift is costing**: $12.80/month in unnecessary replicas
+3. **ConfigHub corrections** would automatically fix these issues
+
+This demonstrates how the cost-impact-monitor provides **pre-deployment cost analysis** and helps maintain cost efficiency by detecting and correcting drift through ConfigHub unit updates!
+
 ## Overview
 
 The Cost Impact Monitor is a **ConfigHub-deployed** DevOps app that continuously monitors all ConfigHub spaces for cost impacts. It provides:
