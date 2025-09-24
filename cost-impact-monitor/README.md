@@ -86,6 +86,8 @@ The monitor deploys itself through ConfigHub units, following the canonical patt
 - Tracks deployment history and prediction accuracy
 - Displays cost trends across all spaces
 
+![Cost Monitoring Dashboard](cost%20monitoring%20dashboard.png)
+
 ## Installation
 
 ### Prerequisites
