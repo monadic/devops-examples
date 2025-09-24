@@ -1,0 +1,80 @@
+🚀 DevOps as Apps - Cost Optimizer Demo
+=====================================
+
+📋 Step 1: Initialize Cost Optimizer with Enhanced SDK
+   ✅ Created DevOps app using enhanced SDK
+   ✅ Enabled Claude debug logging for AI analysis
+   ✅ Connected to Kubernetes cluster
+   ✅ Connected to ConfigHub API
+
+🔧 Step 2: ConfigHub Space Setup with Unique Prefix
+   ✅ Generated unique prefix: 'efficient-whale-1234567890'
+   ✅ Created space: efficient-whale-1234567890-cost-optimizer
+   ✅ Created 'critical-costs' Set for high-priority items
+   ✅ Created filter: 'high-cost-resources' (>$100/month)
+
+📊 Step 3: Gather Resource Usage (Event-Driven)
+   Found 4 deployments across cluster:
+   - frontend-web: CPU 30.0%, Memory 33.3%, $245.50/month
+   - backend-api: CPU 40.0%, Memory 40.0%, $408.75/month
+   - cache-redis: CPU 15.0%, Memory 15.0%, $89.25/month
+   - monitoring-prometheus: CPU 80.0%, Memory 75.0%, $178.50/month
+
+🤖 Step 4: Claude AI Cost Analysis
+   Claude Analysis Summary:
+   📈 Total Monthly Cost: $922.00
+   💰 Potential Savings: $208.95 (22.8%)
+   🎯 Recommendations: 3
+
+💡 Step 5: Cost Optimization Recommendations
+   1. deployment/frontend-web (high priority)
+      💵 Save $73.65/month - Frontend is over-provisioned with only 30% CPU and 33% memory utilization. Can safely reduce resources without impacting performance.
+      🔧 Action: Update deployment unit: reduce CPU to 1.5 vCPU and memory to 2GB
+      ⚠️  Risk: low
+
+   2. statefulset/cache-redis (high priority)
+      💵 Save $53.55/month - Redis cache is significantly over-provisioned with only 15% utilization. Memory can be reduced to match actual usage patterns.
+      🔧 Action: Update StatefulSet unit: reduce memory to 512MB
+      ⚠️  Risk: low
+
+   3. deployment/backend-api (medium priority)
+      💵 Save $81.75/month - Backend API has moderate utilization (40%) but could benefit from slight resource reduction with monitoring.
+      🔧 Action: Update deployment unit: reduce CPU to 4 vCPU, monitor for 1 week
+      ⚠️  Risk: medium
+
+🏪 Step 6: Store Analysis in ConfigHub
+   ✅ Created cost-analysis unit with full data
+   ✅ Stored 2 high-priority recommendations in 'critical-costs' Set
+   ✅ Applied Labels for filtering and querying
+
+🌐 Step 7: Web Dashboard Live
+   ✅ Dashboard updated with latest analysis
+   🔗 View at: http://localhost:8081
+   📊 Cost breakdown by resource type
+   🎯 Interactive recommendations view
+   📈 Auto-refresh every 30 seconds
+
+⚡ Step 8: Event-Driven Processing
+   ✅ Using RunWithInformers() for Kubernetes events
+   ✅ Automatic cost analysis on deployment changes
+   ✅ ConfigHub push-upgrade for propagating optimizations
+
+🎉 Demo Complete!
+
+The cost optimizer successfully demonstrated:
+  ✅ Enhanced SDK integration with logging
+  ✅ ConfigHub space/set/filter management
+  ✅ Claude AI-powered cost analysis
+  ✅ Real-time web dashboard
+  ✅ Event-driven architecture
+  ✅ Global-app deployment pattern
+
+📋 Real Usage:
+  ./cost-optimizer                    # Run with real K8s cluster
+  CLAUDE_DEBUG_LOG=true ./cost-optimizer  # Enable full AI logging
+  AUTO_APPLY_OPTIMIZATIONS=true ./cost-optimizer  # Auto-apply safe changes
+
+🔗 Endpoints:
+  Dashboard:  http://localhost:8081
+  Health:     http://localhost:8080/health
+  API:        http://localhost:8081/api/analysis

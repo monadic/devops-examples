@@ -26,13 +26,15 @@ echo $project > .cub-project
 
 echo "🚀 Setting up ConfigHub spaces and units for drift-detector..."
 
-# Create main space for drift-detector
-echo "Creating space: $project"
-cub space create $project --label project=$project --label app=drift-detector || true
+# Create main space for drift-detector (delete-then-create pattern)
+echo "Creating space: $project (delete existing first if present)"
+cub space delete $project 2>/dev/null || echo "Space $project did not exist, proceeding with creation"
+cub space create $project --label project=$project --label app=drift-detector
 
-# Create filters space
-echo "Creating filters space: $project-filters"
-cub space create $project-filters --label project=$project --label type=filters || true
+# Create filters space (delete-then-create pattern)
+echo "Creating filters space: $project-filters (delete existing first if present)"
+cub space delete $project-filters 2>/dev/null || echo "Space $project-filters did not exist, proceeding with creation"
+cub space create $project-filters --label project=$project --label type=filters
 
 # Create filters for targeting
 echo "Creating filters..."
@@ -41,9 +43,10 @@ cub filter create devops-apps Unit --where-field "Labels.type='devops-app'" --sp
 cub filter create critical Unit --where-field "Labels.tier='critical'" --space $project-filters || true
 cub filter create drift-detector Unit --where-field "Labels.app='drift-detector'" --space $project-filters || true
 
-# Create base space for base configurations
-echo "Creating base space: $project-base"
-cub space create $project-base --label base=true --label project=$project || true
+# Create base space for base configurations (delete-then-create pattern)
+echo "Creating base space: $project-base (delete existing first if present)"
+cub space delete $project-base 2>/dev/null || echo "Space $project-base did not exist, proceeding with creation"
+cub space create $project-base --label base=true --label project=$project
 
 # Create units from base configurations
 echo "Loading base configurations as units..."

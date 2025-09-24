@@ -1,0 +1,83 @@
+#!/bin/bash
+
+# Analyze ConfigHub units for cost WITHOUT deploying them
+# This provides "shift-left" cost analysis - catch expensive configs before deployment
+
+set -e
+
+# Colors for output
+RED='\033[0;31m'
+GREEN='\033[0;32m'
+YELLOW='\033[1;33m'
+BLUE='\033[0;34m'
+NC='\033[0m' # No Color
+
+echo -e "${BLUE}🔍 ConfigHub Pre-Deployment Cost Analyzer${NC}"
+echo "════════════════════════════════════════════"
+echo ""
+
+# Get space ID
+SPACE_ID=${1:-$(cat .cub-project 2>/dev/null || echo "")}
+
+if [ -z "$SPACE_ID" ]; then
+  echo -e "${RED}Error: No space ID provided${NC}"
+  echo ""
+  echo "Usage: bin/analyze-confighub [space-id]"
+  echo "   or: bin/analyze-confighub  (uses .cub-project)"
+  echo ""
+  echo "Examples:"
+  echo "  bin/analyze-confighub fluffy-kitten-dev"
+  echo "  bin/analyze-confighub \$(cat .cub-project)-dev"
+  exit 1
+fi
+
+# Check for ConfigHub token
+if [ -z "$CUB_TOKEN" ]; then
+  echo -e "${YELLOW}⚠️  No CUB_TOKEN found, attempting to get token...${NC}"
+  export CUB_TOKEN=$(cub auth get-token 2>/dev/null || echo "")
+  if [ -z "$CUB_TOKEN" ]; then
+    echo -e "${RED}Error: Not authenticated to ConfigHub${NC}"
+    echo "Run: cub auth login"
+    exit 1
+  fi
+fi
+
+echo -e "${GREEN}✓ Authenticated to ConfigHub${NC}"
+echo -e "Space: ${YELLOW}$SPACE_ID${NC}"
+echo ""
+
+# Build the analyzer if needed
+if [ ! -f cmd/analyze-confighub/analyze-confighub ]; then
+  echo "Building analyzer..."
+  go build -o cmd/analyze-confighub/analyze-confighub ./cmd/analyze-confighub
+fi
+
+# Run analysis
+echo -e "${BLUE}Analyzing ConfigHub units...${NC}"
+echo "─────────────────────────────"
+
+./cmd/analyze-confighub/analyze-confighub \
+  -space "$SPACE_ID" \
+  -store="${STORE_ANNOTATIONS:-false}" \
+  -hierarchy="${ANALYZE_HIERARCHY:-false}"
+
+echo ""
+echo -e "${GREEN}═══════════════════════════════════════════════${NC}"
+echo -e "${GREEN}       Analysis Complete!${NC}"
+echo -e "${GREEN}═══════════════════════════════════════════════${NC}"
+echo ""
+echo "💡 What This Tells You:"
+echo "• Estimated costs BEFORE deployment"
+echo "• Most expensive configurations"
+echo "• Potential over-provisioning"
+echo ""
+echo "🚀 Next Steps:"
+echo "1. Review high-cost units before deploying"
+echo "2. Adjust resource requests in ConfigHub"
+echo "3. Deploy and monitor actual usage with:"
+echo "   ./cost-optimizer"
+echo ""
+echo "📊 Advanced Options:"
+echo "• Analyze full hierarchy: ANALYZE_HIERARCHY=true bin/analyze-confighub"
+echo "• Store cost annotations: STORE_ANNOTATIONS=true bin/analyze-confighub"
+echo "• JSON output: bin/analyze-confighub $SPACE_ID | jq"

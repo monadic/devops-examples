@@ -24,10 +24,19 @@ echo "📦 Setting up cost-optimizer in ConfigHub..."
 echo "Project: $project"
 echo ""
 
-# Create main spaces following global-app hierarchy
-echo "Creating spaces..."
+# Create main spaces following global-app hierarchy (delete-then-create pattern)
+echo "Creating spaces (delete existing first if present)..."
+
+# Main project space
+cub space delete $project 2>/dev/null || echo "Space $project did not exist, proceeding with creation"
 cub space create $project --label app=cost-optimizer --label type=devops-app
+
+# Base space
+cub space delete $project-base 2>/dev/null || echo "Space $project-base did not exist, proceeding with creation"
 cub space create $project-base --label base=true --label project=$project
+
+# Filters space
+cub space delete $project-filters 2>/dev/null || echo "Space $project-filters did not exist, proceeding with creation"
 cub space create $project-filters --label type=filters --label project=$project
 
 # Create filters for cost analysis
