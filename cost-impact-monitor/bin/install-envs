@@ -1,0 +1,64 @@
+#!/bin/bash
+# Create environment hierarchy for cost-impact-monitor
+
+set -e
+
+# Check if base is installed
+if [ ! -e ".cub-project" ]; then
+  echo "Please run bin/install-base first"
+  exit 1
+fi
+
+project=$(cat .cub-project)
+base_space=$project-base
+
+echo "Creating environment hierarchy for project: $project"
+
+# Create dev environment
+echo "Creating dev environment..."
+dev_space=$project-dev
+cub space create $dev_space --label app=cost-impact-monitor --label env=dev
+
+# Clone all units from base to dev with upstream relationship
+echo "Cloning units from base to dev..."
+cub unit create --dest-space $dev_space --space $base_space \
+  --filter all --upstream \
+  --label env=dev --label cloned-from=base
+
+# Create staging environment
+echo "Creating staging environment..."
+staging_space=$project-staging
+cub space create $staging_space --label app=cost-impact-monitor --label env=staging
+
+# Clone from dev to staging
+echo "Cloning units from dev to staging..."
+cub unit create --dest-space $staging_space --space $dev_space \
+  --filter all --upstream \
+  --label env=staging --label cloned-from=dev
+
+# Create prod environment
+echo "Creating prod environment..."
+prod_space=$project-prod
+cub space create $prod_space --label app=cost-impact-monitor --label env=prod
+
+# Clone from staging to prod
+echo "Cloning units from staging to prod..."
+cub unit create --dest-space $prod_space --space $staging_space \
+  --filter all --upstream \
+  --label env=prod --label cloned-from=staging
+
+echo ""
+echo "✅ Environment hierarchy created!"
+echo "📦 Spaces created:"
+echo "  - $base_space (base)"
+echo "  - $dev_space (dev)"
+echo "  - $staging_space (staging)"
+echo "  - $prod_space (prod)"
+echo ""
+echo "🔄 Promotion flow:"
+echo "  base → dev → staging → prod"
+echo ""
+echo "Next steps:"
+echo "1. Run 'bin/apply-all dev' to deploy to development"
+echo "2. Run 'bin/promote dev staging' to promote to staging"
+echo "3. Run 'bin/apply-all staging' to deploy to staging"

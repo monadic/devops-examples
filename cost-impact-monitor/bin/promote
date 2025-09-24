@@ -1,0 +1,49 @@
+#!/bin/bash
+# Promote cost-impact-monitor from one environment to another
+
+set -e
+
+if [ $# -ne 2 ]; then
+  echo "Usage: $0 <source-env> <target-env>"
+  echo "Example: $0 dev staging"
+  exit 1
+fi
+
+SOURCE=$1
+TARGET=$2
+
+# Check if project exists
+if [ ! -e ".cub-project" ]; then
+  echo "Please run bin/install-base first"
+  exit 1
+fi
+
+project=$(cat .cub-project)
+source_space=$project-$SOURCE
+target_space=$project-$TARGET
+
+echo "Promoting cost-impact-monitor from $SOURCE to $TARGET..."
+echo "Source space: $source_space"
+echo "Target space: $target_space"
+
+# Check if spaces exist
+if ! cub space get $source_space > /dev/null 2>&1; then
+  echo "Error: Source space $source_space does not exist"
+  exit 1
+fi
+
+if ! cub space get $target_space > /dev/null 2>&1; then
+  echo "Error: Target space $target_space does not exist"
+  exit 1
+fi
+
+# Use push-upgrade to propagate changes
+echo ""
+echo "Pushing upgrades from $SOURCE to $TARGET..."
+cub unit update --space $target_space --upgrade --patch
+
+echo ""
+echo "✅ Promotion complete!"
+echo ""
+echo "Changes promoted from $SOURCE to $TARGET"
+echo "Run 'bin/apply-all $TARGET' to deploy the changes"

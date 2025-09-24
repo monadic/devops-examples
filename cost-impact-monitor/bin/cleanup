@@ -1,0 +1,47 @@
+#!/bin/bash
+# Clean up cost-impact-monitor installation
+
+set -e
+
+if [ ! -e ".cub-project" ]; then
+  echo "No project to clean up"
+  exit 0
+fi
+
+project=$(cat .cub-project)
+
+echo "Cleaning up project: $project"
+echo "This will destroy all units and delete all spaces"
+echo -n "Are you sure? (y/N): "
+read confirm
+
+if [ "$confirm" != "y" ] && [ "$confirm" != "Y" ]; then
+  echo "Cleanup cancelled"
+  exit 0
+fi
+
+# Destroy units in reverse order
+for env in prod staging dev base; do
+  space=$project-$env
+  if cub space get $space > /dev/null 2>&1; then
+    echo "Cleaning up $env environment..."
+
+    # Destroy units
+    cub unit destroy cost-monitor-deployment --space $space 2>/dev/null || true
+    cub unit destroy cost-monitor-service --space $space 2>/dev/null || true
+    cub unit destroy cost-monitor-rbac --space $space 2>/dev/null || true
+    cub unit destroy cost-monitor-namespace --space $space 2>/dev/null || true
+
+    # Delete space
+    echo "Deleting space $space..."
+    cub space delete $space --force || true
+  fi
+done
+
+# Clean up local files
+rm -f .cub-project
+rm -f .cub-space-prefix
+
+echo ""
+echo "✅ Cleanup complete!"
+echo "All ConfigHub resources have been removed"

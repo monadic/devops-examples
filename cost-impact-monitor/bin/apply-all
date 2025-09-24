@@ -1,0 +1,55 @@
+#!/bin/bash
+# Apply all cost-impact-monitor units to Kubernetes
+
+set -e
+
+if [ $# -ne 1 ]; then
+  echo "Usage: $0 <environment>"
+  echo "Example: $0 dev"
+  exit 1
+fi
+
+ENV=$1
+
+# Check if project exists
+if [ ! -e ".cub-project" ]; then
+  echo "Please run bin/install-base first"
+  exit 1
+fi
+
+project=$(cat .cub-project)
+space=$project-$ENV
+
+echo "Applying cost-impact-monitor to $ENV environment..."
+echo "Space: $space"
+
+# Check if space exists
+if ! cub space get $space > /dev/null 2>&1; then
+  echo "Error: Space $space does not exist"
+  echo "Run bin/install-envs to create environments"
+  exit 1
+fi
+
+# Apply units in order
+echo ""
+echo "Applying namespace..."
+cub unit apply cost-monitor-namespace --space $space
+
+echo "Applying RBAC..."
+cub unit apply cost-monitor-rbac --space $space
+
+echo "Applying service..."
+cub unit apply cost-monitor-service --space $space
+
+echo "Applying deployment..."
+cub unit apply cost-monitor-deployment --space $space
+
+echo ""
+echo "✅ All units applied to $ENV!"
+echo ""
+echo "To check status:"
+echo "  kubectl get all -n cost-monitoring"
+echo ""
+echo "To access dashboard:"
+echo "  kubectl port-forward -n cost-monitoring svc/cost-impact-monitor 8083:8083"
+echo "  Open http://localhost:8083"

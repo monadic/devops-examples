@@ -1,0 +1,230 @@
+#!/bin/bash
+# Install base ConfigHub units for cost-impact-monitor
+
+set -e
+
+# Check if already installed
+if [ -e ".cub-project" ]; then
+  echo "Project already installed. Run bin/cleanup first to reinstall."
+  exit 1
+fi
+
+# Authenticate with ConfigHub
+if ! cub auth status > /dev/null 2>&1; then
+  echo "Please login to ConfigHub first: cub auth login"
+  exit 1
+fi
+
+# Create unique project prefix
+echo "Creating unique project prefix..."
+project=$(cub space new-prefix)
+echo $project > .cub-project
+echo "Project prefix: $project"
+
+# Create base space
+space=$project-base
+echo "Creating base space: $space"
+cub space create $space --label app=cost-impact-monitor --label type=monitoring
+
+# Create filters for cost monitoring
+echo "Creating filters..."
+cub filter create high-cost Unit --space $space \
+  --where "Labels.monthly_cost = 'high'" \
+  --display-name "High Cost Resources" || echo "Filter may already exist"
+
+cub filter create pending-changes Unit --space $space \
+  --where "LiveState.Status != 'Applied'" \
+  --display-name "Pending Changes" || echo "Filter may already exist"
+
+cub filter create all-spaces Space --space $space \
+  --where "SpaceID != ''" \
+  --display-name "All ConfigHub Spaces" || echo "Filter may already exist"
+
+# Create sets for organizing monitored resources
+echo "Creating sets..."
+cub set create critical-resources --space $space \
+  --display-name "Critical Cost Resources" \
+  --label priority=high --label monitor=continuous || echo "Set may already exist"
+
+cub set create warning-units --space $space \
+  --display-name "Cost Warning Units" \
+  --label type=warning --label auto-created=true || echo "Set may already exist"
+
+# Create the deployment unit
+echo "Creating cost-impact-monitor deployment unit..."
+cat <<EOF > /tmp/cost-monitor-deployment.yaml
+apiVersion: apps/v1
+kind: Deployment
+metadata:
+  name: cost-impact-monitor
+  namespace: cost-monitoring
+  labels:
+    app: cost-impact-monitor
+    component: monitor
+spec:
+  replicas: 1
+  selector:
+    matchLabels:
+      app: cost-impact-monitor
+  template:
+    metadata:
+      labels:
+        app: cost-impact-monitor
+    spec:
+      serviceAccountName: cost-monitor-sa
+      containers:
+      - name: monitor
+        image: cost-impact-monitor:latest
+        imagePullPolicy: IfNotPresent
+        ports:
+        - containerPort: 8082
+          name: health
+        - containerPort: 8083
+          name: dashboard
+        env:
+        - name: CUB_TOKEN
+          valueFrom:
+            secretKeyRef:
+              name: confighub-credentials
+              key: token
+        - name: CUB_API_URL
+          value: "https://api.confighub.com/v1"
+        - name: CLAUDE_API_KEY
+          valueFrom:
+            secretKeyRef:
+              name: claude-credentials
+              key: api-key
+              optional: true
+        - name: ENABLE_CLAUDE
+          value: "true"
+        - name: AUTO_APPLY_OPTIMIZATIONS
+          value: "false"
+        resources:
+          requests:
+            cpu: 100m
+            memory: 256Mi
+          limits:
+            cpu: 500m
+            memory: 512Mi
+        livenessProbe:
+          httpGet:
+            path: /health
+            port: 8082
+          initialDelaySeconds: 30
+          periodSeconds: 30
+        readinessProbe:
+          httpGet:
+            path: /health
+            port: 8082
+          initialDelaySeconds: 10
+          periodSeconds: 10
+EOF
+
+cub unit create cost-monitor-deployment --space $space \
+  --data @/tmp/cost-monitor-deployment.yaml \
+  --display-name "Cost Impact Monitor Deployment" \
+  --label type=deployment --label app=cost-impact-monitor \
+  --label monthly_cost=low --label cpu=100m --label memory=256Mi
+
+# Create the service unit
+echo "Creating cost-impact-monitor service unit..."
+cat <<EOF > /tmp/cost-monitor-service.yaml
+apiVersion: v1
+kind: Service
+metadata:
+  name: cost-impact-monitor
+  namespace: cost-monitoring
+  labels:
+    app: cost-impact-monitor
+spec:
+  selector:
+    app: cost-impact-monitor
+  ports:
+  - port: 8083
+    targetPort: 8083
+    name: dashboard
+  - port: 8082
+    targetPort: 8082
+    name: health
+  type: ClusterIP
+EOF
+
+cub unit create cost-monitor-service --space $space \
+  --data @/tmp/cost-monitor-service.yaml \
+  --display-name "Cost Impact Monitor Service" \
+  --label type=service --label app=cost-impact-monitor
+
+# Create namespace unit
+echo "Creating namespace unit..."
+cat <<EOF > /tmp/cost-monitor-namespace.yaml
+apiVersion: v1
+kind: Namespace
+metadata:
+  name: cost-monitoring
+  labels:
+    app: cost-impact-monitor
+    managed-by: confighub
+EOF
+
+cub unit create cost-monitor-namespace --space $space \
+  --data @/tmp/cost-monitor-namespace.yaml \
+  --display-name "Cost Monitoring Namespace" \
+  --label type=namespace --label app=cost-impact-monitor
+
+# Create RBAC unit
+echo "Creating RBAC unit..."
+cat <<EOF > /tmp/cost-monitor-rbac.yaml
+apiVersion: v1
+kind: ServiceAccount
+metadata:
+  name: cost-monitor-sa
+  namespace: cost-monitoring
+---
+apiVersion: rbac.authorization.k8s.io/v1
+kind: ClusterRole
+metadata:
+  name: cost-monitor-role
+rules:
+- apiGroups: [""]
+  resources: ["namespaces", "pods", "services", "deployments"]
+  verbs: ["get", "list", "watch"]
+- apiGroups: ["apps"]
+  resources: ["deployments", "replicasets", "statefulsets"]
+  verbs: ["get", "list", "watch"]
+- apiGroups: ["metrics.k8s.io"]
+  resources: ["pods", "nodes"]
+  verbs: ["get", "list"]
+---
+apiVersion: rbac.authorization.k8s.io/v1
+kind: ClusterRoleBinding
+metadata:
+  name: cost-monitor-binding
+roleRef:
+  apiGroup: rbac.authorization.k8s.io
+  kind: ClusterRole
+  name: cost-monitor-role
+subjects:
+- kind: ServiceAccount
+  name: cost-monitor-sa
+  namespace: cost-monitoring
+EOF
+
+cub unit create cost-monitor-rbac --space $space \
+  --data @/tmp/cost-monitor-rbac.yaml \
+  --display-name "Cost Monitor RBAC" \
+  --label type=rbac --label app=cost-impact-monitor
+
+# Clean up temp files
+rm -f /tmp/cost-monitor-*.yaml
+
+echo ""
+echo "✅ Base installation complete!"
+echo "📦 Created space: $space"
+echo "📋 Created filters: high-cost, pending-changes, all-spaces"
+echo "🗂️  Created sets: critical-resources, warning-units"
+echo "🚀 Created units: deployment, service, namespace, rbac"
+echo ""
+echo "Next steps:"
+echo "1. Run 'bin/install-envs' to create environment hierarchy"
+echo "2. Run 'bin/apply-all dev' to deploy to development"
+echo "3. Access dashboard at http://localhost:8083"
