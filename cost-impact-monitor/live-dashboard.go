@@ -198,10 +198,15 @@ func serveLiveData(w http.ResponseWriter, r *http.Request) {
 					driftCost += driftImpact
 
 					// Add correction command
+					// Use environment variable or allow user to specify space
+					space := os.Getenv("CUB_SPACE")
+					if space == "" {
+						space = "<your-space>"
+					}
 					correction := Correction{
 						Resource: dep.Name,
 						Issue:    fmt.Sprintf("Running %d replicas (expected: %d)", replicas, expected),
-						Command:  fmt.Sprintf("cub unit update %s-unit --space drift-test-demo --patch --from-stdin <<< '{\"spec\":{\"replicas\":%d}}'", dep.Name, expected),
+						Command:  fmt.Sprintf("cub unit update %s --space %s --patch --from-stdin <<< '{\"spec\":{\"replicas\":%d}}'", dep.Name, space, expected),
 						Impact:   fmt.Sprintf("Save $%.2f/month", driftImpact),
 					}
 					data.Corrections = append(data.Corrections, correction)
@@ -270,19 +275,8 @@ func calculateCost(dep appsv1.Deployment) float64 {
 }
 
 func getConfigHubInfo() ConfigHubInfo {
-	// Always list the units we created
-	info := ConfigHubInfo{
-		Spaces: []string{"drift-test-demo"},
-		Units: []string{
-			"test-app-unit",
-			"complex-app-unit",
-			"backend-api-unit",
-			"deployment-test-app",
-		},
-		Connected: true, // We know it's connected because we created units
-	}
-
-	return info
+	// Dynamically fetch ConfigHub info instead of hardcoding
+	return GetDynamicConfigHubInfo()
 }
 
 func serveDashboard(w http.ResponseWriter, r *http.Request) {

@@ -1,0 +1,6 @@
+#!/bin/bash
+
+# Create environment hierarchy following global-app pattern
+bin/new-env dev base
+bin/new-env staging dev
+bin/new-env prod staging

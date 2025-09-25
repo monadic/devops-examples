@@ -1,0 +1,19 @@
+#!/bin/bash
+
+if [ ! -e ".cub-project" ]; then
+  echo "No space prefix found. Run bin/install-base first."
+  exit 1
+fi
+
+project=$(cat .cub-project)
+
+if [[ -z "$1" || -z "$2" ]]; then
+  echo "Usage: $0 <env-name> <upstream>"
+  exit 1
+fi
+
+name=$1
+upstream=$2
+
+bin/new-infra $name
+bin/new-app-env $name $upstream $name

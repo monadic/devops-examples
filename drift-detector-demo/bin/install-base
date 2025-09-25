@@ -1,0 +1,43 @@
+#!/bin/bash
+
+# Following the global-app pattern exactly for drift-detector demo
+
+if [ -e ".cub-project" ]; then
+  echo "Clean up previous usage with bin/cleanup or delete the .cub-project file to continue"
+  exit 1
+fi
+
+if [ -z "$1" ]; then
+  # Generate a new space prefix that is not in use
+  project=$(cub space new-prefix)
+else
+  project=$1
+fi
+
+# Save the space prefix to a file for future use
+echo $project > .cub-project
+
+echo "Project: $project"
+
+# Create a space to store filters used in this example
+cub space create $project --label project=$project # for filters
+
+cub filter create all   Unit --where-field "Space.Labels.project = '$project'" --space $project
+cub filter create app   Unit --where-field "Labels.type='app'"                 --space $project
+cub filter create infra Unit --where-field "Labels.type='infra'"               --space $project
+
+# Create spaces for the base configs
+cub space create $project-base --label base=true --label project=$project
+
+# Load the base config into the base space
+cub unit create backend-api --space $project-base baseconfig/backend-api.yaml --label type=app
+cub unit create frontend-app --space $project-base baseconfig/frontend-app.yaml --label type=app
+cub unit create cache-service --space $project-base baseconfig/cache-service.yaml --label type=app
+cub unit create database-service --space $project-base baseconfig/database-service.yaml --label type=app
+
+# The infra space is used to store infrastructure units such as namespaces
+cub space create $project-infra --label project=$project
+
+cub unit create ns-base --space $project-infra baseconfig/ns-base.yaml --label type=infra
+
+echo "Base installation complete for project: $project"

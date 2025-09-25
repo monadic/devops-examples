@@ -1,0 +1,29 @@
+#!/bin/bash
+
+if [ ! -e ".cub-project" ]; then
+  echo "No space prefix found. Run bin/install-base first."
+  exit 1
+fi
+
+project=$(cat .cub-project)
+
+# First arg is name of new app env, second arg is the upstream, third is infra name
+if [ -z "$1" ] || [ -z "$2" ] || [ -z "$3" ]; then
+  echo "Usage: $0 <env-name> <upstream> <infra-name>"
+  exit 1
+fi
+
+app=$1
+upstream=$2
+infra=$3
+
+cub space create $project-$app --label project=$project
+
+# Clone all app units from upstream with upstream relationship
+cub unit create --dest-space $project-$app --space $project-$upstream --filter $project/app --label targetable=true
+
+# Optional: Set environment-specific properties
+# cub run set-hostname-subdomain --subdomain $app --space $project-$app --quiet --where "Slug IN ('backend-api', 'frontend-app')"
+
+# Link to namespace
+cub link create --dest-space $project-$app --where-from "Slug LIKE '%'" --where-to "Slug='ns-$infra'" --where-to-space "Slug = '$project-infra'"
