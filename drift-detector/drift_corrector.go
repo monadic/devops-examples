@@ -486,8 +486,8 @@ func (dc *DriftCorrector) GenerateConfigHubWorkflow() string {
 	workflow.WriteString("## Step 4: Verify Corrections\n")
 	workflow.WriteString("```bash\n")
 	workflow.WriteString("# Check that Kubernetes resources match ConfigHub\n")
-	workflow.WriteString("kubectl get deployments -n <namespace>\n")
-	workflow.WriteString("kubectl get configmaps -n <namespace>\n")
+	workflow.WriteString("cub unit list --space <space> --filter deployments\n")
+	workflow.WriteString("cub unit list --space <space> --filter configmaps\n")
 	workflow.WriteString("```\n\n")
 
 	workflow.WriteString("## Step 5: Push-Upgrade (Optional)\n")
