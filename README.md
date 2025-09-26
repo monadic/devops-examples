@@ -74,6 +74,7 @@ Manages application upgrades across environments.
 - ConfigHub account ([sign up](https://confighub.com))
 - Kubernetes cluster (or [Kind](https://kind.sigs.k8s.io/) for testing)
 - Claude API key ([get one](https://console.anthropic.com/settings/keys)) - **Required by default**
+- **ConfigHub Worker** - Required for ConfigHub ↔ Kubernetes bridge (see [WORKER-SETUP.md](WORKER-SETUP.md))
 
 ### Installation
 
@@ -84,11 +85,18 @@ Manages application upgrades across environments.
    cub auth login
    ```
 
-2. **Try the drift detector:**
+2. **Setup ConfigHub Worker (REQUIRED):**
+   ```bash
+   ./setup-worker.sh      # Creates worker and targets
+   cub worker run devops-worker  # Run in separate terminal
+   ```
+
+3. **Try the drift detector:**
    ```bash
    cd drift-detector
-   ./bin/install      # Set up ConfigHub resources
-   ./bin/demo         # Run interactive demo
+   ./bin/install-base     # Set up ConfigHub resources (global-app pattern)
+   ./bin/install-envs     # Create environment hierarchy
+   ./drift-detector demo  # Run interactive demo
    ```
 
 3. **Test with real cluster:**

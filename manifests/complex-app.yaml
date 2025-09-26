@@ -1,0 +1,32 @@
+apiVersion: apps/v1
+kind: Deployment
+metadata:
+  name: complex-app
+  namespace: drift-test
+  labels:
+    app: complex-app
+    tier: standard
+    monitor: "true"
+spec:
+  replicas: 3
+  selector:
+    matchLabels:
+      app: complex-app
+  template:
+    metadata:
+      labels:
+        app: complex-app
+        tier: standard
+    spec:
+      containers:
+      - name: complex-app
+        image: nginx:alpine
+        ports:
+        - containerPort: 80
+        resources:
+          requests:
+            memory: "128Mi"
+            cpu: "100m"
+          limits:
+            memory: "256Mi"
+            cpu: "200m"
