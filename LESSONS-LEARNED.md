@@ -161,6 +161,51 @@ if len(os.Args) > 1 && os.Args[1] == "demo" {
 ❌ No target configuration → Added target creation
 ❌ Unclear prerequisites → Updated documentation
 
+## 8. Cleanup-First Principle is Critical
+**Discovery**: Old resources must ALWAYS be cleaned up before creating new ones.
+
+**Why This Matters**:
+- **Idempotency**: Scripts can be run multiple times safely
+- **No conflicts**: Prevents "already exists" errors
+- **Clean state**: Each run starts fresh
+- **No resource leaks**: Old namespaces, deployments, spaces cleaned up
+
+**Implementation Pattern**:
+```bash
+#!/bin/bash
+# CRITICAL: Clean up old resources first (cleanup-first principle)
+echo "🧹 Cleaning up old resources before setup..."
+
+# Clean up Kubernetes resources
+if kubectl get namespace drift-test &>/dev/null; then
+    echo "  Deleting drift-test namespace..."
+    kubectl delete namespace drift-test --wait=false 2>/dev/null || true
+fi
+
+# Clean up any existing .cub-project file
+if [ -e ".cub-project" ]; then
+    OLD_PROJECT=$(cat .cub-project)
+    echo "  Cleaning up old ConfigHub spaces..."
+
+    # Delete old spaces
+    cub space delete $OLD_PROJECT 2>/dev/null || true
+    cub space delete $OLD_PROJECT-base 2>/dev/null || true
+    cub space delete $OLD_PROJECT-filters 2>/dev/null || true
+
+    rm -f .cub-project
+fi
+
+# NOW create new resources...
+```
+
+**Applied To**:
+- ✅ `cleanup.sh` - Global cleanup script
+- ✅ `drift-detector/bin/install-base` - Cleanup before setup
+- ✅ `cost-optimizer/bin/install-base` - Cleanup before setup
+- ✅ `setup-worker.sh` - Delete old workers/targets first
+
+**Key Learning**: Never assume clean state; always enforce it.
+
 ## Future Improvements
 
 1. **Automated worker management**: Start/stop with apps

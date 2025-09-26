@@ -5,10 +5,31 @@
 
 set -e
 
-# Check if project already exists
+# CRITICAL: Clean up old resources first (cleanup-first principle)
+echo "🧹 Cleaning up old resources before setup..."
+
+# Clean up Kubernetes resources
+if kubectl get namespace drift-test &>/dev/null; then
+    echo "  Deleting drift-test namespace..."
+    kubectl delete namespace drift-test --wait=false 2>/dev/null || true
+fi
+
+# Clean up any existing .cub-project file
 if [ -e ".cub-project" ]; then
-  echo "Clean up previous usage with bin/cleanup or delete the .cub-project file to continue"
-  exit 1
+    OLD_PROJECT=$(cat .cub-project)
+    echo "  Found existing project: $OLD_PROJECT"
+    echo "  Cleaning up old ConfigHub spaces..."
+
+    # Delete old spaces
+    cub space delete $OLD_PROJECT 2>/dev/null || true
+    cub space delete $OLD_PROJECT-base 2>/dev/null || true
+    cub space delete $OLD_PROJECT-filters 2>/dev/null || true
+    cub space delete $OLD_PROJECT-dev 2>/dev/null || true
+    cub space delete $OLD_PROJECT-staging 2>/dev/null || true
+    cub space delete $OLD_PROJECT-prod 2>/dev/null || true
+
+    rm -f .cub-project
+    echo "  ✅ Cleanup complete"
 fi
 
 # Generate or use provided project prefix
@@ -26,14 +47,12 @@ echo $project > .cub-project
 
 echo "🚀 Setting up ConfigHub spaces and units for drift-detector..."
 
-# Create main space for drift-detector (delete-then-create pattern)
-echo "Creating space: $project (delete existing first if present)"
-cub space delete $project 2>/dev/null || echo "Space $project did not exist, proceeding with creation"
+# Create main space for drift-detector
+echo "Creating space: $project"
 cub space create $project --label project=$project --label app=drift-detector
 
-# Create filters space (delete-then-create pattern)
-echo "Creating filters space: $project-filters (delete existing first if present)"
-cub space delete $project-filters 2>/dev/null || echo "Space $project-filters did not exist, proceeding with creation"
+# Create filters space
+echo "Creating filters space: $project-filters"
 cub space create $project-filters --label project=$project --label type=filters
 
 # Create filters for targeting
@@ -43,9 +62,8 @@ cub filter create devops-apps Unit --where-field "Labels.type='devops-app'" --sp
 cub filter create critical Unit --where-field "Labels.tier='critical'" --space $project-filters || true
 cub filter create drift-detector Unit --where-field "Labels.app='drift-detector'" --space $project-filters || true
 
-# Create base space for base configurations (delete-then-create pattern)
-echo "Creating base space: $project-base (delete existing first if present)"
-cub space delete $project-base 2>/dev/null || echo "Space $project-base did not exist, proceeding with creation"
+# Create base space for base configurations
+echo "Creating base space: $project-base"
 cub space create $project-base --label base=true --label project=$project
 
 # Create units from base configurations

@@ -121,6 +121,39 @@ assign_target_to_units() {
     echo -e "${GREEN}✅ Units updated with target${NC}"
 }
 
+# Clean up old workers and targets
+cleanup_old_resources() {
+    echo -e "\n${YELLOW}🧹 Cleaning up old workers and targets...${NC}"
+
+    # Clean up old workers matching common patterns
+    PATTERNS=("devops-worker" "drift-worker" "cost-worker")
+    for pattern in "${PATTERNS[@]}"; do
+        workers=$(cub worker list --quiet 2>/dev/null | grep "$pattern" | awk '{print $1}' || true)
+        if [ -n "$workers" ]; then
+            for worker in $workers; do
+                echo "  Deleting worker: $worker"
+                cub worker delete "$worker" 2>/dev/null || true
+            done
+        fi
+    done
+
+    # Clean up old targets in common spaces
+    SPACES=("default" "drift-test-demo" "cost-optimizer-demo")
+    for space in "${SPACES[@]}"; do
+        if cub space get "$space" &>/dev/null; then
+            targets=$(cub target list --space "$space" --quiet 2>/dev/null | awk '{print $1}' || true)
+            if [ -n "$targets" ]; then
+                for target in $targets; do
+                    echo "  Deleting target: $target in space $space"
+                    cub target delete "$target" --space "$space" 2>/dev/null || true
+                done
+            fi
+        fi
+    done
+
+    echo -e "${GREEN}✅ Cleanup complete${NC}"
+}
+
 # Main setup
 main() {
     echo -e "\n${GREEN}Starting ConfigHub Worker Setup${NC}"
@@ -131,6 +164,9 @@ main() {
 
     # Check prerequisites
     check_prerequisites
+
+    # CRITICAL: Clean up old resources first (cleanup-first principle)
+    cleanup_old_resources
 
     # Get current Kubernetes context
     echo -e "\n${YELLOW}Kubernetes Configuration:${NC}"

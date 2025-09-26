@@ -5,9 +5,31 @@
 
 set -e
 
+# CRITICAL: Clean up old resources first (cleanup-first principle)
+echo "🧹 Cleaning up old resources before setup..."
+
+# Clean up Kubernetes resources
+if kubectl get namespace cost-optimizer &>/dev/null; then
+    echo "  Deleting cost-optimizer namespace..."
+    kubectl delete namespace cost-optimizer --wait=false 2>/dev/null || true
+fi
+
+# Clean up any existing .cub-project file
 if [ -e ".cub-project" ]; then
-  echo "Clean up previous usage with bin/cleanup or delete .cub-project"
-  exit 1
+    OLD_PROJECT=$(cat .cub-project)
+    echo "  Found existing project: $OLD_PROJECT"
+    echo "  Cleaning up old ConfigHub spaces..."
+
+    # Delete old spaces
+    cub space delete $OLD_PROJECT 2>/dev/null || true
+    cub space delete $OLD_PROJECT-base 2>/dev/null || true
+    cub space delete $OLD_PROJECT-filters 2>/dev/null || true
+    cub space delete $OLD_PROJECT-dev 2>/dev/null || true
+    cub space delete $OLD_PROJECT-staging 2>/dev/null || true
+    cub space delete $OLD_PROJECT-prod 2>/dev/null || true
+
+    rm -f .cub-project
+    echo "  ✅ Cleanup complete"
 fi
 
 # Generate unique prefix using ConfigHub
@@ -24,19 +46,16 @@ echo "📦 Setting up cost-optimizer in ConfigHub..."
 echo "Project: $project"
 echo ""
 
-# Create main spaces following global-app hierarchy (delete-then-create pattern)
-echo "Creating spaces (delete existing first if present)..."
+# Create main spaces following global-app hierarchy
+echo "Creating spaces..."
 
 # Main project space
-cub space delete $project 2>/dev/null || echo "Space $project did not exist, proceeding with creation"
 cub space create $project --label app=cost-optimizer --label type=devops-app
 
 # Base space
-cub space delete $project-base 2>/dev/null || echo "Space $project-base did not exist, proceeding with creation"
 cub space create $project-base --label base=true --label project=$project
 
 # Filters space
-cub space delete $project-filters 2>/dev/null || echo "Space $project-filters did not exist, proceeding with creation"
 cub space create $project-filters --label type=filters --label project=$project
 
 # Create filters for cost analysis
