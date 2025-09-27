@@ -20,10 +20,11 @@ import (
 )
 
 type DriftDetector struct {
-	app           *sdk.DevOpsApp
-	spaceID       uuid.UUID
-	criticalSetID uuid.UUID
-	targetID      uuid.UUID
+	app              *sdk.DevOpsApp
+	spaceID          uuid.UUID
+	criticalSetID    uuid.UUID
+	targetID         uuid.UUID
+	currentChangeSet *sdk.ChangeSet
 }
 
 type DriftAnalysis struct {
@@ -239,7 +240,25 @@ func (d *DriftDetector) detectAndFixDrift() error {
 		return nil
 	}
 
-	// 3. Analyze drift with Claude if available
+	// 3. Create a ChangeSet for grouping drift corrections
+	changeSet, err := d.app.Cub.CreateChangeSet(d.spaceID, sdk.CreateChangeSetRequest{
+		DisplayName: fmt.Sprintf("Drift Corrections - %s", time.Now().Format("2006-01-02 15:04")),
+		Description: fmt.Sprintf("Automated drift corrections for %d items", len(driftItems)),
+		Labels: map[string]string{
+			"type":      "drift-correction",
+			"automated": "true",
+		},
+	})
+	if err != nil {
+		d.app.Logger.Printf("Failed to create ChangeSet: %v", err)
+		// Continue without ChangeSet
+		changeSet = nil
+	} else {
+		d.currentChangeSet = changeSet
+		d.app.Logger.Printf("Created ChangeSet %s for drift corrections", changeSet.ChangeSetID)
+	}
+
+	// 4. Analyze drift with Claude if available
 	analysis := &DriftAnalysis{
 		HasDrift: true,
 		Items:    driftItems,
