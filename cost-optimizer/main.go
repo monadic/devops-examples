@@ -23,6 +23,7 @@ type CostOptimizer struct {
 	spaceID       uuid.UUID
 	criticalSetID uuid.UUID
 	dashboard     *Dashboard
+	applier       *CostRecommendationApplier
 	// SDK analyzers
 	costAnalyzer      *sdk.CostAnalyzer
 	wasteAnalyzer     *sdk.WasteAnalyzer
@@ -61,6 +62,9 @@ type CostRecommendation struct {
 	Risk            string                 `json:"risk"` // "low", "medium", "high"
 	Explanation     string                 `json:"explanation"`
 	ConfigHubAction string                 `json:"confighub_action"` // What to update in ConfigHub
+	ConfigHubCommand string                `json:"confighub_command"` // Specific cub command
+	Applied         bool                   `json:"applied"` // Has this been applied?
+	AppliedAt       *time.Time             `json:"applied_at,omitempty"` // When was it applied?
 }
 
 type ResourceBreakdown struct {
@@ -180,6 +184,9 @@ func NewCostOptimizer() (*CostOptimizer, error) {
 
 	// Initialize dashboard
 	optimizer.dashboard = NewDashboard(optimizer)
+
+	// Initialize cost recommendation applier
+	optimizer.applier = NewCostRecommendationApplier(optimizer)
 
 	return optimizer, nil
 }
@@ -686,6 +693,9 @@ func (c *CostOptimizer) convertSDKToDashboardFormat(sdkCostAnalysis *sdk.SpaceCo
 	if c.app.Claude != nil {
 		c.enhanceWithClaudeAI(analysis)
 	}
+
+	// Enrich recommendations with specific ConfigHub commands
+	analysis.Recommendations = c.applier.EnrichRecommendationsWithCommands(analysis.Recommendations)
 
 	return analysis, nil
 }
@@ -1262,33 +1272,35 @@ func (c *CostOptimizer) storeAnalysisInConfigHub(analysis *CostAnalysis) error {
 
 // applyRecommendations applies safe recommendations automatically
 func (c *CostOptimizer) applyRecommendations(analysis *CostAnalysis) error {
-	applied := 0
+	ctx := context.Background()
 
-	for _, rec := range analysis.Recommendations {
-		// Only apply low-risk recommendations automatically
-		if rec.Risk == "low" && rec.Type == "rightsize" && rec.MonthlySavings > 20 {
-			if err := c.applySingleRecommendation(rec); err != nil {
-				c.app.Logger.Printf("⚠️  Failed to apply recommendation for %s: %v", rec.Resource, err)
-				continue
+	// Check if auto-apply is enabled
+	autoApply := os.Getenv("AUTO_APPLY_OPTIMIZATIONS")
+	if autoApply != "true" {
+		c.app.Logger.Printf("ℹ️  Auto-apply disabled. Set AUTO_APPLY_OPTIMIZATIONS=true to enable")
+		// Still generate commands but don't apply
+		for _, rec := range analysis.Recommendations {
+			if rec.Risk == "low" && rec.MonthlySavings > 20 {
+				c.app.Logger.Printf("📝 Would apply: %s (saves $%.2f/month)", rec.Resource, rec.MonthlySavings)
 			}
-			applied++
 		}
+		return nil
 	}
 
+	// Apply recommendations via ConfigHub
+	applied := c.applier.ApplyRecommendationsAutomatically(ctx, analysis.Recommendations)
+
 	if applied > 0 {
-		c.app.Logger.Printf("✅ Applied %d cost optimization recommendations", applied)
+		c.app.Logger.Printf("✅ Applied %d cost optimization recommendations via ConfigHub", applied)
+	} else {
+		c.app.Logger.Printf("ℹ️  No recommendations met auto-apply criteria (low risk, >$20/month savings)")
 	}
 
 	return nil
 }
 
-// applySingleRecommendation applies a single recommendation (legacy method)
+// applySingleRecommendation applies a single recommendation via ConfigHub
 func (c *CostOptimizer) applySingleRecommendation(rec CostRecommendation) error {
-	// In a real implementation, this would update the Kubernetes deployment
-	// For demo purposes, we'll just log what would be done
-	c.app.Logger.Printf("🔧 Would apply: %s - %s (saves $%.2f/month)",
-		rec.Resource, rec.Explanation, rec.MonthlySavings)
-
-	// Would also update ConfigHub unit with new configuration
-	return nil
+	ctx := context.Background()
+	return c.applier.ApplyRecommendation(ctx, rec)
 }

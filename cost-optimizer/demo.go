@@ -234,35 +234,33 @@ func (d *CostOptimizerDemo) mockClaudeAnalysis(resourceUsage []ResourceUsage) *C
 }
 
 func (d *CostOptimizerDemo) renderResourceUsageTable(resourceUsage []ResourceUsage) string {
-	table := sdk.NewTableWriter([]string{"Resource", "Type", "Replicas", "CPU Util", "Mem Util", "Monthly Cost"})
-	table.SetBorderStyle(sdk.DefaultBorder)
+	table := sdk.NewTable("Resource", "Type", "Replicas", "CPU Util", "Mem Util", "Monthly Cost")
 
 	for _, usage := range resourceUsage {
-		table.AddRow([]string{
+		table.AddRow(
 			usage.Name,
 			usage.Type,
 			fmt.Sprintf("%d", usage.Replicas),
 			fmt.Sprintf("%.1f%%", usage.CPUUtilization),
 			fmt.Sprintf("%.1f%%", usage.MemUtilization),
 			fmt.Sprintf("$%.2f", usage.MonthlyCost),
-		})
+		)
 	}
 
 	return table.Render()
 }
 
 func (d *CostOptimizerDemo) renderRecommendationsTable(recommendations []CostRecommendation) string {
-	table := sdk.NewTableWriter([]string{"Resource", "Priority", "Savings/mo", "Risk", "Action"})
-	table.SetBorderStyle(sdk.DefaultBorder)
+	table := sdk.NewTable("Resource", "Priority", "Savings/mo", "Risk", "Action")
 
 	for _, rec := range recommendations {
-		table.AddRow([]string{
+		table.AddRow(
 			rec.Resource,
 			rec.Priority,
 			fmt.Sprintf("$%.2f", rec.MonthlySavings),
 			rec.Risk,
 			rec.ConfigHubAction,
-		})
+		)
 	}
 
 	return table.Render()
