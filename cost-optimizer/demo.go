@@ -3,6 +3,8 @@ package main
 import (
 	"fmt"
 	"time"
+
+	sdk "github.com/monadic/devops-sdk"
 )
 
 // runDemo shows the cost optimizer working with mock data
@@ -38,11 +40,11 @@ func (d *CostOptimizerDemo) run() {
 
 	fmt.Println("📊 Step 3: Gather Resource Usage (Event-Driven)")
 	resourceUsage := d.mockResourceUsage()
-	fmt.Printf("   Found %d deployments across cluster:\n", len(resourceUsage))
-	for _, usage := range resourceUsage {
-		fmt.Printf("   - %s: CPU %.1f%%, Memory %.1f%%, $%.2f/month\n",
-			usage.Name, usage.CPUUtilization, usage.MemUtilization, usage.MonthlyCost)
-	}
+	fmt.Printf("   Found %d deployments across cluster:\n\n", len(resourceUsage))
+
+	// Use SDK ASCII table to show resource usage
+	usageTable := d.renderResourceUsageTable(resourceUsage)
+	fmt.Println(usageTable)
 	fmt.Println()
 
 	time.Sleep(500 * time.Millisecond)
@@ -57,14 +59,12 @@ func (d *CostOptimizerDemo) run() {
 
 	time.Sleep(500 * time.Millisecond)
 
-	fmt.Println("💡 Step 5: Cost Optimization Recommendations")
-	for i, rec := range analysis.Recommendations {
-		fmt.Printf("   %d. %s (%s priority)\n", i+1, rec.Resource, rec.Priority)
-		fmt.Printf("      💵 Save $%.2f/month - %s\n", rec.MonthlySavings, rec.Explanation)
-		fmt.Printf("      🔧 Action: %s\n", rec.ConfigHubAction)
-		fmt.Printf("      ⚠️  Risk: %s\n", rec.Risk)
-		fmt.Println()
-	}
+	fmt.Println("💡 Step 5: Cost Optimization Recommendations\n")
+
+	// Use SDK ASCII table to show recommendations
+	recsTable := d.renderRecommendationsTable(analysis.Recommendations)
+	fmt.Println(recsTable)
+	fmt.Println()
 
 	time.Sleep(500 * time.Millisecond)
 
@@ -231,4 +231,39 @@ func (d *CostOptimizerDemo) mockClaudeAnalysis(resourceUsage []ResourceUsage) *C
 			AvgMemoryUtil:    40.8,
 		},
 	}
+}
+
+func (d *CostOptimizerDemo) renderResourceUsageTable(resourceUsage []ResourceUsage) string {
+	table := sdk.NewTableWriter([]string{"Resource", "Type", "Replicas", "CPU Util", "Mem Util", "Monthly Cost"})
+	table.SetBorderStyle(sdk.DefaultBorder)
+
+	for _, usage := range resourceUsage {
+		table.AddRow([]string{
+			usage.Name,
+			usage.Type,
+			fmt.Sprintf("%d", usage.Replicas),
+			fmt.Sprintf("%.1f%%", usage.CPUUtilization),
+			fmt.Sprintf("%.1f%%", usage.MemUtilization),
+			fmt.Sprintf("$%.2f", usage.MonthlyCost),
+		})
+	}
+
+	return table.Render()
+}
+
+func (d *CostOptimizerDemo) renderRecommendationsTable(recommendations []CostRecommendation) string {
+	table := sdk.NewTableWriter([]string{"Resource", "Priority", "Savings/mo", "Risk", "Action"})
+	table.SetBorderStyle(sdk.DefaultBorder)
+
+	for _, rec := range recommendations {
+		table.AddRow([]string{
+			rec.Resource,
+			rec.Priority,
+			fmt.Sprintf("$%.2f", rec.MonthlySavings),
+			rec.Risk,
+			rec.ConfigHubAction,
+		})
+	}
+
+	return table.Render()
 }

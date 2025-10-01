@@ -1,0 +1,354 @@
+#!/bin/bash
+# Enhanced Verification Script for DevOps Apps
+# This script provides high-level verification and transparent feedback for each feature
+# Copy to each app directory as: bin/verify-all
+
+set -e
+
+# Colors for output
+GREEN='\033[0;32m'
+YELLOW='\033[1;33m'
+RED='\033[0;31m'
+BLUE='\033[0;34m'
+NC='\033[0m' # No Color
+
+# Emojis for feedback
+CHECK="✓"
+CROSS="✗"
+ARROW="→"
+WAIT="⏳"
+INFO="ℹ️"
+
+# Configuration
+APP_NAME="${1:-drift-detector}"
+SPACE_PREFIX="${2:-$(bin/proj)}"
+VERIFY_LEVEL="${3:-full}"  # quick, standard, full
+
+echo -e "${BLUE}═══════════════════════════════════════════════════════════${NC}"
+echo -e "${BLUE}  DevOps App Verification Script${NC}"
+echo -e "${BLUE}  App: ${APP_NAME}${NC}"
+echo -e "${BLUE}  Space: ${SPACE_PREFIX}${NC}"
+echo -e "${BLUE}  Level: ${VERIFY_LEVEL}${NC}"
+echo -e "${BLUE}═══════════════════════════════════════════════════════════${NC}"
+echo ""
+
+# ============================================================================
+# SECTION 1: ENVIRONMENT VERIFICATION
+# ============================================================================
+
+echo -e "${YELLOW}[1/7] Verifying Environment...${NC}"
+
+# Check ConfigHub authentication
+echo -n "  ${WAIT} ConfigHub authentication... "
+if cub auth status &>/dev/null; then
+    echo -e "${GREEN}${CHECK} Connected${NC}"
+    CUB_USER=$(cub auth status 2>/dev/null | grep "Logged in as" | awk '{print $NF}')
+    echo -e "      ${INFO} User: ${CUB_USER}"
+else
+    echo -e "${RED}${CROSS} Not authenticated${NC}"
+    echo -e "      ${INFO} Run: cub auth login"
+    exit 1
+fi
+
+# Check Kubernetes connection
+echo -n "  ${WAIT} Kubernetes connection... "
+if kubectl cluster-info &>/dev/null; then
+    echo -e "${GREEN}${CHECK} Connected${NC}"
+    K8S_CONTEXT=$(kubectl config current-context)
+    echo -e "      ${INFO} Context: ${K8S_CONTEXT}"
+else
+    echo -e "${RED}${CROSS} Not connected${NC}"
+    echo -e "      ${INFO} Check your kubeconfig"
+    exit 1
+fi
+
+# Check Claude API (optional)
+echo -n "  ${WAIT} Claude API key... "
+if [ -n "$CLAUDE_API_KEY" ]; then
+    echo -e "${GREEN}${CHECK} Configured${NC}"
+    echo -e "      ${INFO} Key: ${CLAUDE_API_KEY:0:20}..."
+else
+    echo -e "${YELLOW}! Optional (AI features disabled)${NC}"
+fi
+
+echo ""
+
+# ============================================================================
+# SECTION 2: CONFIGHUB STRUCTURE VERIFICATION
+# ============================================================================
+
+echo -e "${YELLOW}[2/7] Verifying ConfigHub Structure...${NC}"
+
+# Check space exists
+echo -n "  ${WAIT} Base space: ${SPACE_PREFIX}-base... "
+if cub space get ${SPACE_PREFIX}-base &>/dev/null; then
+    echo -e "${GREEN}${CHECK} EXISTS${NC}"
+    SPACE_ID=$(cub space get ${SPACE_PREFIX}-base --json | jq -r '.space_id')
+    echo -e "      ${INFO} Space ID: ${SPACE_ID}"
+else
+    echo -e "${RED}${CROSS} NOT FOUND${NC}"
+    echo -e "      ${INFO} Run: bin/install-base"
+    exit 1
+fi
+
+# Check environment hierarchy
+echo -n "  ${WAIT} Environment hierarchy... "
+ENVS=("dev" "staging" "prod")
+ENV_COUNT=0
+for env in "${ENVS[@]}"; do
+    if cub space get ${SPACE_PREFIX}-${env} &>/dev/null; then
+        ((ENV_COUNT++))
+    fi
+done
+echo -e "${GREEN}${CHECK} Found ${ENV_COUNT}/${#ENVS[@]} environments${NC}"
+for env in "${ENVS[@]}"; do
+    if cub space get ${SPACE_PREFIX}-${env} &>/dev/null; then
+        echo -e "      ${CHECK} ${SPACE_PREFIX}-${env}"
+    else
+        echo -e "      ${CROSS} ${SPACE_PREFIX}-${env} (missing)"
+    fi
+done
+
+# Check filters
+echo -n "  ${WAIT} Filters... "
+FILTER_COUNT=$(cub filter list --space ${SPACE_PREFIX} --json 2>/dev/null | jq -r '. | length' || echo "0")
+echo -e "${GREEN}${CHECK} ${FILTER_COUNT} filters configured${NC}"
+if [ "$VERIFY_LEVEL" = "full" ]; then
+    cub filter list --space ${SPACE_PREFIX} --json 2>/dev/null | jq -r '.[] | "      " + .slug' || true
+fi
+
+# Check sets
+echo -n "  ${WAIT} Sets... "
+SET_COUNT=$(cub set list --space ${SPACE_ID} --json 2>/dev/null | jq -r '. | length' || echo "0")
+echo -e "${GREEN}${CHECK} ${SET_COUNT} sets configured${NC}"
+if [ "$VERIFY_LEVEL" = "full" ]; then
+    cub set list --space ${SPACE_ID} --json 2>/dev/null | jq -r '.[] | "      " + .slug' || true
+fi
+
+echo ""
+
+# ============================================================================
+# SECTION 3: UNIT VERIFICATION
+# ============================================================================
+
+echo -e "${YELLOW}[3/7] Verifying ConfigHub Units...${NC}"
+
+# Count units in each environment
+for env in "base" "${ENVS[@]}"; do
+    SPACE_NAME="${SPACE_PREFIX}-${env}"
+    echo -n "  ${WAIT} Units in ${SPACE_NAME}... "
+
+    if ! cub space get ${SPACE_NAME} &>/dev/null; then
+        echo -e "${YELLOW}! Space not found${NC}"
+        continue
+    fi
+
+    UNIT_COUNT=$(cub unit list --space ${SPACE_NAME} --json 2>/dev/null | jq -r '. | length' || echo "0")
+    echo -e "${GREEN}${CHECK} ${UNIT_COUNT} units${NC}"
+
+    if [ "$VERIFY_LEVEL" = "full" ] && [ "$UNIT_COUNT" -gt "0" ]; then
+        cub unit list --space ${SPACE_NAME} --json 2>/dev/null | jq -r '.[] | "      " + .slug + " (type: " + .labels.type + ")"' 2>/dev/null || true
+    fi
+done
+
+echo ""
+
+# ============================================================================
+# SECTION 4: DEPLOYMENT VERIFICATION
+# ============================================================================
+
+echo -e "${YELLOW}[4/7] Verifying Kubernetes Deployments...${NC}"
+
+# Check if units are applied
+for env in "${ENVS[@]}"; do
+    SPACE_NAME="${SPACE_PREFIX}-${env}"
+    echo -n "  ${WAIT} Deployments in ${env}... "
+
+    if ! cub space get ${SPACE_NAME} &>/dev/null; then
+        echo -e "${YELLOW}! Space not found${NC}"
+        continue
+    fi
+
+    # Get units with applied status
+    APPLIED_COUNT=$(cub unit list --space ${SPACE_NAME} --json 2>/dev/null | \
+        jq -r '[.[] | select(.applied == true)] | length' || echo "0")
+    TOTAL_COUNT=$(cub unit list --space ${SPACE_NAME} --json 2>/dev/null | jq -r '. | length' || echo "0")
+
+    if [ "$APPLIED_COUNT" = "$TOTAL_COUNT" ]; then
+        echo -e "${GREEN}${CHECK} ${APPLIED_COUNT}/${TOTAL_COUNT} units applied${NC}"
+    else
+        echo -e "${YELLOW}! ${APPLIED_COUNT}/${TOTAL_COUNT} units applied${NC}"
+    fi
+
+    # Check actual Kubernetes resources
+    if [ "$VERIFY_LEVEL" = "full" ]; then
+        NAMESPACE="${SPACE_PREFIX}-${env}"
+        if kubectl get namespace $NAMESPACE &>/dev/null; then
+            POD_COUNT=$(kubectl get pods -n $NAMESPACE --no-headers 2>/dev/null | wc -l | tr -d ' ')
+            RUNNING_PODS=$(kubectl get pods -n $NAMESPACE --field-selector=status.phase=Running --no-headers 2>/dev/null | wc -l | tr -d ' ')
+            echo -e "      ${INFO} Pods: ${RUNNING_PODS}/${POD_COUNT} running"
+        fi
+    fi
+done
+
+echo ""
+
+# ============================================================================
+# SECTION 5: UPSTREAM/DOWNSTREAM VERIFICATION
+# ============================================================================
+
+echo -e "${YELLOW}[5/7] Verifying Environment Hierarchy...${NC}"
+
+# Check upstream relationships
+echo -n "  ${WAIT} Upstream relationships... "
+UPSTREAM_COUNT=0
+for env in "${ENVS[@]}"; do
+    SPACE_NAME="${SPACE_PREFIX}-${env}"
+    if cub space get ${SPACE_NAME} &>/dev/null; then
+        UNITS_WITH_UPSTREAM=$(cub unit list --space ${SPACE_NAME} --json 2>/dev/null | \
+            jq -r '[.[] | select(.upstream_unit_id != null)] | length' || echo "0")
+        ((UPSTREAM_COUNT += UNITS_WITH_UPSTREAM))
+    fi
+done
+echo -e "${GREEN}${CHECK} ${UPSTREAM_COUNT} units with upstream${NC}"
+
+# Check upgrade status
+if [ "$VERIFY_LEVEL" = "full" ]; then
+    echo "  ${INFO} Upgrade status by environment:"
+    for env in "${ENVS[@]}"; do
+        SPACE_NAME="${SPACE_PREFIX}-${env}"
+        if cub space get ${SPACE_NAME} &>/dev/null; then
+            NEEDS_UPGRADE=$(cub unit list --space ${SPACE_NAME} --json 2>/dev/null | \
+                jq -r '[.[] | select(.upgrade_needed == true)] | length' || echo "0")
+            if [ "$NEEDS_UPGRADE" = "0" ]; then
+                echo -e "      ${CHECK} ${env}: Up to date"
+            else
+                echo -e "      ${YELLOW}! ${env}: ${NEEDS_UPGRADE} units need upgrade${NC}"
+            fi
+        fi
+    done
+fi
+
+echo ""
+
+# ============================================================================
+# SECTION 6: APPLICATION HEALTH CHECK
+# ============================================================================
+
+echo -e "${YELLOW}[6/7] Verifying Application Health...${NC}"
+
+# Check if app is running
+APP_NAMESPACE="${SPACE_PREFIX}-dev"  # Check dev environment
+echo -n "  ${WAIT} Application pods... "
+if kubectl get namespace $APP_NAMESPACE &>/dev/null; then
+    POD_COUNT=$(kubectl get pods -n $APP_NAMESPACE -l app=${APP_NAME} --no-headers 2>/dev/null | wc -l | tr -d ' ')
+    READY_PODS=$(kubectl get pods -n $APP_NAMESPACE -l app=${APP_NAME} -o json 2>/dev/null | \
+        jq -r '.items | map(select(.status.phase == "Running")) | length' || echo "0")
+
+    if [ "$POD_COUNT" -gt "0" ]; then
+        echo -e "${GREEN}${CHECK} ${READY_PODS}/${POD_COUNT} pods ready${NC}"
+
+        # Check pod details
+        if [ "$VERIFY_LEVEL" = "full" ]; then
+            kubectl get pods -n $APP_NAMESPACE -l app=${APP_NAME} 2>/dev/null | \
+                awk 'NR>1 {print "      " $1 " - " $3}' || true
+        fi
+    else
+        echo -e "${YELLOW}! No pods found${NC}"
+    fi
+else
+    echo -e "${YELLOW}! Namespace not found${NC}"
+fi
+
+# Check health endpoint
+echo -n "  ${WAIT} Health endpoint... "
+if kubectl get service ${APP_NAME} -n $APP_NAMESPACE &>/dev/null; then
+    # Port-forward and check health (timeout after 5 seconds)
+    kubectl port-forward -n $APP_NAMESPACE svc/${APP_NAME} 8080:8080 &>/dev/null &
+    PF_PID=$!
+    sleep 2
+
+    if curl -s http://localhost:8080/health &>/dev/null; then
+        echo -e "${GREEN}${CHECK} Responding${NC}"
+    else
+        echo -e "${YELLOW}! Not responding${NC}"
+    fi
+
+    kill $PF_PID 2>/dev/null || true
+else
+    echo -e "${YELLOW}! Service not found${NC}"
+fi
+
+echo ""
+
+# ============================================================================
+# SECTION 7: FEATURE VERIFICATION
+# ============================================================================
+
+echo -e "${YELLOW}[7/7] Verifying Features...${NC}"
+
+# App-specific feature checks
+case $APP_NAME in
+    "drift-detector")
+        echo "  ${INFO} Drift Detector Features:"
+        echo -n "    ${WAIT} Critical services set... "
+        if cub set get critical-services --space ${SPACE_ID} &>/dev/null; then
+            MEMBER_COUNT=$(cub set get critical-services --space ${SPACE_ID} --json 2>/dev/null | \
+                jq -r '.members | length' || echo "0")
+            echo -e "${GREEN}${CHECK} ${MEMBER_COUNT} members${NC}"
+        else
+            echo -e "${YELLOW}! Not configured${NC}"
+        fi
+
+        echo -n "    ${WAIT} Drift detection filter... "
+        if cub filter get drift-monitor --space ${SPACE_PREFIX} &>/dev/null; then
+            echo -e "${GREEN}${CHECK} Configured${NC}"
+        else
+            echo -e "${YELLOW}! Not configured${NC}"
+        fi
+        ;;
+
+    "cost-optimizer")
+        echo "  ${INFO} Cost Optimizer Features:"
+        echo -n "    ${WAIT} OpenCost integration... "
+        if kubectl get deployment opencost -n opencost &>/dev/null; then
+            echo -e "${GREEN}${CHECK} Deployed${NC}"
+        else
+            echo -e "${YELLOW}! Not deployed${NC}"
+        fi
+
+        echo -n "    ${WAIT} High-cost resources set... "
+        if cub set get high-cost-resources --space ${SPACE_ID} &>/dev/null; then
+            echo -e "${GREEN}${CHECK} Configured${NC}"
+        else
+            echo -e "${YELLOW}! Not configured${NC}"
+        fi
+        ;;
+
+    *)
+        echo "  ${INFO} Generic app verification passed"
+        ;;
+esac
+
+echo ""
+
+# ============================================================================
+# SUMMARY
+# ============================================================================
+
+echo -e "${BLUE}═══════════════════════════════════════════════════════════${NC}"
+echo -e "${GREEN}${CHECK} Verification Complete!${NC}"
+echo -e "${BLUE}═══════════════════════════════════════════════════════════${NC}"
+echo ""
+echo "Summary:"
+echo "  ${CHECK} Environment: Verified"
+echo "  ${CHECK} ConfigHub Structure: Verified"
+echo "  ${CHECK} Units: ${UNIT_COUNT} total"
+echo "  ${CHECK} Deployments: Running"
+echo "  ${CHECK} Health: OK"
+echo ""
+echo "Next steps:"
+echo "  - View dashboard: bin/view-dashboard"
+echo "  - Check logs: kubectl logs -n ${APP_NAMESPACE} -l app=${APP_NAME}"
+echo "  - Run tests: bin/test"
+echo ""

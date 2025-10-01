@@ -33,21 +33,23 @@ func (d *DriftDetectorDemo) run() {
 
 	fmt.Println("🔍 Step 2: Discover Critical Services Using Sets and Filters")
 	units := d.mockConfigHubUnits()
-	fmt.Printf("   Found %d critical units to monitor:\n", len(units))
-	for _, unit := range units {
-		fmt.Printf("   - %s (%s)\n", unit.Slug, unit.Labels["tier"])
-	}
+	fmt.Printf("   Found %d critical units to monitor:\n\n", len(units))
+
+	// Use SDK ASCII table to show units
+	unitsTable := sdk.RenderUnitsTable(units, false)
+	fmt.Println(unitsTable)
 	fmt.Println()
 
 	time.Sleep(500 * time.Millisecond)
 
 	fmt.Println("⚠️  Step 3: Detect Configuration Drift")
 	driftItems := d.mockDriftDetection(units)
-	fmt.Printf("   Detected %d drift items:\n", len(driftItems))
-	for _, item := range driftItems {
-		fmt.Printf("   - %s [%s]: %s expected=%s, actual=%s\n",
-			item.UnitSlug, item.Resource, item.Field, item.Expected, item.Actual)
-	}
+	fmt.Printf("   Detected %d drift items:\n\n", len(driftItems))
+
+	// Use SDK ASCII table to show drift (state comparison)
+	resources := d.driftItemsToResourceState(driftItems)
+	driftTable := sdk.RenderStateComparisonTable(resources)
+	fmt.Println(driftTable)
 	fmt.Println()
 
 	time.Sleep(500 * time.Millisecond)
@@ -201,6 +203,20 @@ func (d *DriftDetectorDemo) showRealAPIUsage() {
 	for _, api := range avoidedAPIs {
 		fmt.Printf("     ❌ %s\n", api)
 	}
+}
+
+func (d *DriftDetectorDemo) driftItemsToResourceState(driftItems []DriftItem) []sdk.ResourceState {
+	resources := make([]sdk.ResourceState, len(driftItems))
+	for i, item := range driftItems {
+		resources[i] = sdk.ResourceState{
+			Name:           item.Resource,
+			ConfigHubState: item.Expected,
+			ActualState:    item.Actual,
+			Status:         "DRIFT",
+			Field:          item.Field,
+		}
+	}
+	return resources
 }
 
 // runDemoMode checks if demo mode was requested
