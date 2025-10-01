@@ -105,9 +105,22 @@ This bug prevents:
 4. ❌ `cub unit apply` workflow is blocked
 5. ❌ ConfigHub → Worker → Kubernetes deployment pattern is broken
 
-## Workaround
+## Workaround Options
 
-**Manual kubectl apply** (bypasses ConfigHub):
+### Option 1: Pin to Working Image (RECOMMENDED)
+Use the working image hash until the bug is fixed:
+
+```bash
+# When creating worker manifest, edit the image:
+# FROM: image: ghcr.io/confighubai/confighub-worker:latest
+# TO:   image: ghcr.io/confighubai/confighub-worker@sha256:8b96908dd57fd906ce9168aa9c283b3285029fc86adcf7a2079d622650ca02b5
+
+cub worker install my-worker --namespace confighub --space my-space --export > worker.yaml
+# Edit worker.yaml to use sha256:8b96908d... image
+kubectl apply -f worker.yaml
+```
+
+### Option 2: Manual kubectl apply (bypasses ConfigHub)
 ```bash
 # Units exist in ConfigHub but show STATUS=NoLive
 kubectl apply -f confighub/workloads/nginx-deployment.yaml
@@ -120,6 +133,12 @@ This deploys to Kubernetes but:
 - No audit trail in ConfigHub
 - Can't use `cub unit update` + apply workflow
 - Defeats purpose of ConfigHub-native deployment
+
+### Option 3: Wait for ConfigHub Team
+ConfigHub team needs to:
+1. Revert `:latest` tag to working image `8b96908d...`
+2. Fix bug in `c4338b51...` image
+3. Push fixed version as new `:latest`
 
 ## Comparison: Working vs Broken Worker
 
@@ -181,14 +200,49 @@ $ cub worker get cost-optimizer-worker --space sunrise-cub-cost-optimizer-base -
 
 This suggests the worker pod is using a different API endpoint that doesn't properly return the worker metadata, even though the worker record exists in the database.
 
-## Hypothesis
+## ROOT CAUSE IDENTIFIED ⚠️
 
-Possible causes:
-1. **API endpoint mismatch**: Worker pod uses different endpoint than CLI
-2. **Worker authentication issue**: Worker secret not properly authorized to fetch its own metadata
-3. **Timing race condition**: Worker pod starts before API fully commits worker record
-4. **API version incompatibility**: Newer worker pods incompatible with current API
-5. **Organization/space scoping issue**: Worker can't access its own metadata across space boundaries
+**The bug is in the worker container image itself!**
+
+### Image Version Comparison
+
+Both deployments use `ghcr.io/confighubai/confighub-worker:latest`, but different image hashes were pulled:
+
+**Working Worker** (created 15:19):
+```
+ghcr.io/confighubai/confighub-worker@sha256:8b96908dd57fd906ce9168aa9c283b3285029fc86adcf7a2079d622650ca02b5
+Status: ✅ Ready
+```
+
+**Broken Workers** (created 17:50, 17:57):
+```
+ghcr.io/confighubai/confighub-worker@sha256:c4338b51eaa8896207b02c28dca18bb280e548dc58e82190da453881994d46dc
+Status: ❌ CrashLoopBackOff - 404 error
+```
+
+### Timeline
+- **2025-10-01 15:19** - devops-test-worker created with `8b96908d...` → ✅ Works
+- **2025-10-01 ~15:20-17:49** - **NEW IMAGE PUSHED** with `c4338b51...` to `:latest` tag
+- **2025-10-01 17:50** - cost-optimizer-worker created with `c4338b51...` → ❌ Fails
+- **2025-10-01 17:57** - test-worker-2 created with `c4338b51...` → ❌ Fails
+
+### Proof
+Even creating a new worker in the SAME working space (cozy-cub-drift-detector-base) fails with the new image:
+```bash
+$ cub worker create test-worker-2 --space cozy-cub-drift-detector-base
+Successfully created bridgeworker test-worker-2 (9439b360-2976-495f-b14e-7ddde89f2c70)
+
+$ kubectl logs -n confighub -l app=test-worker-2
+2025/10/01 17:57:25 [ERROR] Failed to get bridge worker slug: server returned status 404: 404 Not Found
+```
+
+### Conclusion
+- ❌ NOT an API issue
+- ❌ NOT a space age issue
+- ❌ NOT a timing issue
+- ✅ **BUG IN NEW WORKER IMAGE** (`c4338b51`)
+
+The newer worker image has a code bug where it cannot properly fetch its own slug from the ConfigHub API during initialization, even though the worker record exists and can be queried via CLI.
 
 ## Diagnostic Information
 
