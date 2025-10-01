@@ -153,14 +153,42 @@ NAME    WORKER    PROVIDERTYPE    PARAMETERS    SPACE
 # Empty
 ```
 
+## Key Findings
+
+### Both Workers Use Same Infrastructure
+✅ **Same Kubernetes cluster**: Both deployed to Kind cluster, namespace `confighub`
+✅ **Same ConfigHub API**: Both use secret `confighub-worker-env` with same credentials
+✅ **Same API URL**: CONFIGHUB_URL empty (uses default API endpoint)
+
+### Worker Record EXISTS in API
+The `cub` CLI can successfully fetch the broken worker:
+
+```bash
+$ cub worker get cost-optimizer-worker --space sunrise-cub-cost-optimizer-base --json
+{
+  "BridgeWorkerID": "82bde808-ce33-4e54-9646-0ff2d0ddf97c",
+  "Slug": "cost-optimizer-worker",
+  "Condition": "Disconnected",
+  "LastSeenAt": "0001-01-01T00:00:00Z"
+}
+```
+
+**BUT** the worker pod itself gets 404 when trying to fetch the same data during startup!
+
+### API Endpoint Inconsistency
+- ✅ CLI endpoint works: Can fetch worker by slug/ID
+- ❌ Worker pod endpoint fails: Returns 404 for same worker
+
+This suggests the worker pod is using a different API endpoint that doesn't properly return the worker metadata, even though the worker record exists in the database.
+
 ## Hypothesis
 
 Possible causes:
-1. **API endpoint changed**: Worker is calling an endpoint that no longer exists
-2. **Space-specific issue**: New spaces may have different API behavior
-3. **Worker version mismatch**: Older workers use different API version
-4. **Rate limiting or quota**: New worker creation being rejected
-5. **Authentication issue**: Worker token not properly scoped
+1. **API endpoint mismatch**: Worker pod uses different endpoint than CLI
+2. **Worker authentication issue**: Worker secret not properly authorized to fetch its own metadata
+3. **Timing race condition**: Worker pod starts before API fully commits worker record
+4. **API version incompatibility**: Newer worker pods incompatible with current API
+5. **Organization/space scoping issue**: Worker can't access its own metadata across space boundaries
 
 ## Diagnostic Information
 
