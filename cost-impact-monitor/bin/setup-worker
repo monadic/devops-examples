@@ -1,0 +1,86 @@
+#!/bin/bash
+
+# Set up ConfigHub worker for Kubernetes deployment
+# This script creates and installs a ConfigHub worker that executes 'cub unit apply' commands
+
+set -e
+
+echo "🔧 Setting up ConfigHub worker for Kubernetes deployment"
+echo "================================================"
+echo ""
+
+# Get project name
+if [ ! -e ".cub-project" ]; then
+    echo "❌ Error: No project found. Run bin/install-base first."
+    exit 1
+fi
+
+PROJECT=$(cat .cub-project)
+SPACE="$PROJECT-base"
+WORKER_NAME="devops-test-worker"
+
+# Check if kubectl is configured
+if ! kubectl cluster-info &>/dev/null; then
+    echo "❌ Error: kubectl is not configured or cluster is not accessible"
+    echo "Please create a Kind cluster first:"
+    echo "  kind create cluster --name devops-test"
+    exit 1
+fi
+
+echo "Creating confighub namespace in cluster..."
+kubectl create namespace confighub --dry-run=client -o yaml | kubectl apply -f - 2>&1 | grep -v "unchanged" || true
+echo ""
+
+# Check if worker already exists
+if cub worker list --space $SPACE 2>/dev/null | grep -q $WORKER_NAME; then
+    echo "✅ Worker '$WORKER_NAME' already exists"
+else
+    echo "Creating ConfigHub worker..."
+    cub worker create $WORKER_NAME --space $SPACE
+    echo ""
+fi
+
+echo "Installing worker to Kubernetes cluster..."
+
+# Export worker manifest
+cub worker install $WORKER_NAME \
+    --namespace confighub \
+    --space $SPACE \
+    --export > /tmp/worker-manifest.yaml
+
+# Apply manifest
+kubectl apply -f /tmp/worker-manifest.yaml 2>&1 | grep -E "(created|configured)" || true
+echo ""
+
+# Get worker credentials and create secret
+echo "Creating worker credentials secret..."
+WORKER_ENVS=$(cub worker get-envs $WORKER_NAME --space $SPACE)
+WORKER_ID=$(echo "$WORKER_ENVS" | grep CONFIGHUB_WORKER_ID | cut -d'=' -f2)
+WORKER_SECRET=$(echo "$WORKER_ENVS" | grep CONFIGHUB_WORKER_SECRET | cut -d'=' -f2)
+
+kubectl create secret generic confighub-worker-env \
+    -n confighub \
+    --from-literal=CONFIGHUB_WORKER_ID=$WORKER_ID \
+    --from-literal=CONFIGHUB_WORKER_SECRET=$WORKER_SECRET \
+    --dry-run=client -o yaml | kubectl apply -f - 2>&1 | grep -v "unchanged" || true
+echo ""
+
+echo "Waiting for worker to connect..."
+sleep 10
+
+# Check worker status
+if cub worker list --space $SPACE | grep -q "Ready"; then
+    echo "✅ Worker connected!"
+    echo ""
+    cub worker list --space $SPACE
+    echo ""
+else
+    echo "⚠️  Worker is connecting... Check status with:"
+    echo "  cub worker list --space $SPACE"
+    echo ""
+fi
+
+echo "Next steps:"
+echo "1. Set targets: bin/apply-base"
+echo "2. Or manually: cub unit set-target k8s-$WORKER_NAME --where \"Space.Slug = '$SPACE'\" --space $SPACE"
+echo "3. Then apply: cub unit apply <unit-name> --space $SPACE"

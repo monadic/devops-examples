@@ -1,0 +1,175 @@
+#!/bin/bash
+
+# Test the complete ConfigHub → Kubernetes workflow
+# This script validates that all steps work correctly
+
+set -e
+
+echo "🧪 Testing ConfigHub → Kubernetes Workflow"
+echo "=========================================="
+echo ""
+
+# Colors for output
+GREEN='\033[0;32m'
+RED='\033[0;31m'
+YELLOW='\033[1;33m'
+NC='\033[0m' # No Color
+
+test_passed() {
+    echo -e "${GREEN}✅ $1${NC}"
+}
+
+test_failed() {
+    echo -e "${RED}❌ $1${NC}"
+    exit 1
+}
+
+test_warning() {
+    echo -e "${YELLOW}⚠️  $1${NC}"
+}
+
+# Test 1: Check prerequisites
+echo "Test 1: Checking prerequisites..."
+if ! command -v cub &> /dev/null; then
+    test_failed "cub CLI not found. Install from https://confighub.com"
+fi
+test_passed "cub CLI found"
+
+if ! command -v kubectl &> /dev/null; then
+    test_failed "kubectl not found. Install kubectl"
+fi
+test_passed "kubectl found"
+
+if ! kubectl cluster-info &>/dev/null; then
+    test_failed "Kubernetes cluster not accessible. Create with: kind create cluster --name devops-test"
+fi
+test_passed "Kubernetes cluster accessible"
+echo ""
+
+# Test 2: Check if ConfigHub structure exists
+echo "Test 2: Checking ConfigHub structure..."
+if [ ! -e ".cub-project" ]; then
+    test_warning "No .cub-project file found. Run bin/install-base first"
+    echo ""
+    echo "Would you like to run bin/install-base now? (y/n)"
+    read -r response
+    if [[ "$response" =~ ^[Yy]$ ]]; then
+        ./bin/install-base
+    else
+        test_failed "Cannot proceed without ConfigHub structure"
+    fi
+fi
+
+PROJECT=$(cat .cub-project)
+SPACE="$PROJECT-base"
+test_passed "Found project: $PROJECT"
+
+# Check if units exist
+UNIT_COUNT=$(cub unit list --space $SPACE 2>/dev/null | tail -n +2 | wc -l | tr -d ' ')
+if [ "$UNIT_COUNT" -eq 0 ]; then
+    test_failed "No units found in $SPACE. Run bin/install-base"
+fi
+test_passed "Found $UNIT_COUNT units in ConfigHub"
+echo ""
+
+# Test 3: Check worker status
+echo "Test 3: Checking ConfigHub worker..."
+WORKER_NAME="devops-test-worker"
+
+if ! cub worker list --space $SPACE 2>/dev/null | grep -q $WORKER_NAME; then
+    test_warning "Worker not found. Run bin/setup-worker"
+    echo ""
+    echo "Would you like to run bin/setup-worker now? (y/n)"
+    read -r response
+    if [[ "$response" =~ ^[Yy]$ ]]; then
+        ./bin/setup-worker
+    else
+        test_failed "Cannot proceed without worker"
+    fi
+fi
+
+if ! cub worker list --space $SPACE | grep -q "Ready"; then
+    test_warning "Worker exists but not ready. Check logs: kubectl logs -n confighub deployment/$WORKER_NAME"
+else
+    test_passed "Worker is Ready"
+fi
+echo ""
+
+# Test 4: Check if targets are set
+echo "Test 4: Checking if targets are set..."
+TARGET_COUNT=$(cub unit list --space $SPACE | grep -c "k8s-$WORKER_NAME" || echo "0")
+if [ "$TARGET_COUNT" -eq 0 ]; then
+    test_warning "No targets set on units"
+    echo ""
+    echo "Would you like to set targets and apply? (y/n)"
+    read -r response
+    if [[ "$response" =~ ^[Yy]$ ]]; then
+        ./bin/apply-base
+    else
+        echo "You can manually set targets with:"
+        echo "  cub unit set-target k8s-$WORKER_NAME --where \"Space.Slug = '$SPACE'\" --space $SPACE"
+    fi
+else
+    test_passed "Targets set on $TARGET_COUNT units"
+fi
+echo ""
+
+# Test 5: Check deployment status
+echo "Test 5: Checking deployment status..."
+READY_COUNT=$(cub unit list --space $SPACE | grep -c "Ready" || echo "0")
+if [ "$READY_COUNT" -eq 0 ]; then
+    test_warning "No units in Ready state. Units may not be applied yet."
+    echo "Apply with: bin/apply-base"
+else
+    test_passed "$READY_COUNT units in Ready state"
+fi
+echo ""
+
+# Test 6: Check Kubernetes resources
+echo "Test 6: Checking Kubernetes resources..."
+if kubectl get namespace devops-apps &>/dev/null; then
+    test_passed "Namespace devops-apps exists"
+
+    POD_COUNT=$(kubectl get pods -n devops-apps --no-headers 2>/dev/null | wc -l | tr -d ' ')
+    if [ "$POD_COUNT" -gt 0 ]; then
+        RUNNING_COUNT=$(kubectl get pods -n devops-apps --no-headers 2>/dev/null | grep -c "Running" || echo "0")
+        test_passed "Found $RUNNING_COUNT/$POD_COUNT pods running"
+    else
+        test_warning "No pods found in devops-apps namespace"
+    fi
+else
+    test_warning "Namespace devops-apps not found. Units may not be applied."
+fi
+echo ""
+
+# Summary
+echo "=========================================="
+echo "📊 Workflow Test Summary"
+echo "=========================================="
+echo ""
+echo "ConfigHub Structure:"
+echo "  Project: $PROJECT"
+echo "  Space: $SPACE"
+echo "  Units: $UNIT_COUNT"
+echo "  Ready: $READY_COUNT"
+echo ""
+echo "Kubernetes:"
+if kubectl get namespace devops-apps &>/dev/null; then
+    echo "  Namespace: devops-apps ✅"
+    echo "  Pods: $POD_COUNT"
+else
+    echo "  Namespace: devops-apps ❌"
+fi
+echo ""
+echo "Worker:"
+cub worker list --space $SPACE | tail -n +2
+echo ""
+
+echo "Next steps:"
+echo "  - View ConfigHub status: cub unit list --space $SPACE"
+echo "  - View Kubernetes status: kubectl get all -n devops-apps"
+echo "  - Update a unit: cub unit update <name> <file> --space $SPACE"
+echo "  - Re-apply a unit: cub unit apply <name> --space $SPACE"
+echo ""
+
+test_passed "Workflow test complete!"

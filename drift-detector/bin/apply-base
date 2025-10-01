@@ -1,0 +1,77 @@
+#!/bin/bash
+
+# Apply base units to Kubernetes via ConfigHub
+# This demonstrates the ConfigHub → Kubernetes deployment workflow
+
+set -e
+
+echo "🚀 Applying base units to Kubernetes via ConfigHub"
+echo "==============================================="
+echo ""
+
+# Get project name
+if [ ! -e ".cub-project" ]; then
+    echo "❌ Error: No project found. Run bin/install-base first."
+    exit 1
+fi
+
+PROJECT=$(cat .cub-project)
+SPACE="$PROJECT-base"
+WORKER_NAME="devops-test-worker"
+
+# Check if worker exists
+if ! cub worker list --space $SPACE 2>/dev/null | grep -q "Ready"; then
+    echo "⚠️  Worker not ready. Run bin/setup-worker first."
+    echo ""
+    cub worker list --space $SPACE 2>/dev/null || echo "No workers found"
+    exit 1
+fi
+
+echo "🎯 Setting targets for all units..."
+TARGET="k8s-$WORKER_NAME"
+
+# Set target for all units in the base space
+cub unit set-target $TARGET \
+    --where "Space.Slug = '$SPACE'" \
+    --space $SPACE
+
+echo ""
+
+# Apply units in order (namespace first, then rbac, then app components)
+echo "📦 Applying units to Kubernetes..."
+
+echo "Applying namespace..."
+cub unit apply namespace --space $SPACE --wait=false 2>&1 | grep -v "^$" || true
+sleep 3
+
+echo "Applying drift-detector-rbac..."
+cub unit apply drift-detector-rbac --space $SPACE --wait=false 2>&1 | grep -v "^$" || true
+sleep 3
+
+echo "Applying drift-detector-deployment..."
+cub unit apply drift-detector-deployment --space $SPACE --wait=false 2>&1 | grep -v "^$" || true
+sleep 3
+
+echo "Applying drift-detector-service..."
+cub unit apply drift-detector-service --space $SPACE --wait=false 2>&1 | grep -v "^$" || true
+sleep 3
+
+echo ""
+echo "✅ All units applied successfully!"
+echo ""
+
+# Show status
+echo "📊 ConfigHub status:"
+cub unit list --space $SPACE
+echo ""
+
+echo "📊 Kubernetes status:"
+kubectl get all -n devops-apps
+echo ""
+
+echo "To check individual unit details:"
+echo "  cub unit get <unit-name> --space $SPACE --json"
+echo ""
+echo "To re-apply a unit after changes:"
+echo "  cub unit update <unit-name> <file.yaml> --space $SPACE"
+echo "  cub unit apply <unit-name> --space $SPACE"

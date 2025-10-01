@@ -2,6 +2,12 @@
 
 AI-powered Kubernetes cost optimization that leverages ConfigHub's unique capabilities for continuous, multi-environment cost management.
 
+## 📚 Documentation
+
+- **[QUICKSTART.md](QUICKSTART.md)** - Step-by-step setup guide (start here!)
+- **[WORKFLOW.md](WORKFLOW.md)** - Understanding the ConfigHub → Kubernetes workflow
+- **[README.md](README.md)** - Full architecture and features (this document)
+
 ## 🆕 OpenCost Integration
 
 The cost optimizer now integrates with [OpenCost](https://www.opencost.io/) (CNCF Incubating project) for real-time, accurate cloud cost data instead of estimates.

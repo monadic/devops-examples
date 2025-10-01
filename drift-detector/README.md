@@ -2,6 +2,12 @@
 
 Event-driven Kubernetes configuration drift detection that leverages ConfigHub's unique capabilities for continuous compliance across multi-environment deployments.
 
+## 📚 Documentation
+
+- **[QUICKSTART.md](QUICKSTART.md)** - Step-by-step setup guide (start here!)
+- **[WORKFLOW.md](WORKFLOW.md)** - Understanding the ConfigHub → Kubernetes workflow
+- **[README.md](README.md)** - Full architecture and features (this document)
+
 ## Why ConfigHub Makes This Better Than DIY or Agentic DevOps Workflow Tools
 
 ### vs DIY Drift Scripts

@@ -2,6 +2,13 @@
 
 Real-time cost monitoring for all ConfigHub deployments with trigger-based pre/post deployment analysis.
 
+## 📚 Documentation
+
+- **[QUICKSTART.md](QUICKSTART.md)** - Step-by-step setup guide (start here!)
+- **[WORKFLOW.md](WORKFLOW.md)** - Understanding the ConfigHub → Kubernetes workflow
+- **[README.md](README.md)** - Full architecture and features (this document)
+- **[SCENARIO-HELM-FLUX.md](SCENARIO-HELM-FLUX.md)** - Real-world use case example
+
 ## Example Use
 
 The cost impact monitor has analyzed your Kind cluster resources:
