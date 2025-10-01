@@ -1,0 +1,76 @@
+#!/bin/bash
+# Creates ConfigHub units for sample workloads to analyze for cost optimization
+
+set -e
+
+if [ ! -f .cub-project ]; then
+    echo "❌ Error: .cub-project file not found"
+    echo "Please run bin/install-base first"
+    exit 1
+fi
+
+PROJECT=$(cat .cub-project)
+SPACE="${PROJECT}-base"
+
+echo "🚀 Installing sample workloads to ConfigHub..."
+echo "Project: $PROJECT"
+echo "Space: $SPACE"
+echo ""
+
+# Create workload units from YAML files
+echo "Creating workload units..."
+
+# Nginx (over-provisioned frontend)
+cub unit create nginx-web confighub/workloads/nginx-deployment.yaml \
+  --space $SPACE \
+  --label app=nginx \
+  --label tier=frontend \
+  --label cost-category=compute \
+  --label cost-analysis=enabled || true
+
+echo "✅ Created nginx-web unit (5 replicas, 500m CPU each = 2500m total)"
+
+# Redis (memory-intensive cache)
+cub unit create redis-cache confighub/workloads/redis-deployment.yaml \
+  --space $SPACE \
+  --label app=redis \
+  --label tier=cache \
+  --label cost-category=memory \
+  --label cost-analysis=enabled || true
+
+echo "✅ Created redis-cache unit (3 replicas, 2Gi memory each = 6Gi total)"
+
+# Postgres (database with storage)
+cub unit create postgres-db confighub/workloads/postgres-deployment.yaml \
+  --space $SPACE \
+  --label app=postgres \
+  --label tier=database \
+  --label cost-category=storage \
+  --label cost-analysis=enabled || true
+
+echo "✅ Created postgres-db unit (2 replicas, 1Gi memory + 500m CPU each)"
+
+echo ""
+echo "✅ Sample workloads installed!"
+echo ""
+echo "View units in ConfigHub:"
+echo "  cub unit list --space $SPACE"
+echo ""
+echo "You should see:"
+echo "  nginx-web       - Frontend web server (5 replicas)"
+echo "  redis-cache     - Cache layer (3 replicas)"
+echo "  postgres-db     - Database (2 replicas)"
+echo ""
+echo "Next steps:"
+echo "1. Run: bin/apply-workloads    # Deploy workloads to Kubernetes"
+echo "2. Wait 2 minutes for metrics to collect"
+echo "3. Run: ./cost-optimizer       # Analyze and generate recommendations"
+echo ""
+echo "Expected cost optimization recommendations:"
+echo "  • nginx-web: Reduce replicas from 5 to 2-3 (low traffic)"
+echo "  • redis-cache: Reduce memory from 2Gi to 1Gi per replica"
+echo "  • postgres-db: Right-size CPU from 500m to 250m"
+echo ""
+echo "💡 These recommendations will be visible in:"
+echo "  • Dashboard: http://localhost:8081/dashboard"
+echo "  • CLI output with specific cub commands"

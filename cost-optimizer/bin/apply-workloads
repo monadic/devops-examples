@@ -1,0 +1,52 @@
+#!/bin/bash
+# Applies sample workload units to Kubernetes via ConfigHub
+
+set -e
+
+if [ ! -f .cub-project ]; then
+    echo "❌ Error: .cub-project file not found"
+    echo "Please run bin/install-base first"
+    exit 1
+fi
+
+PROJECT=$(cat .cub-project)
+SPACE="${PROJECT}-base"
+
+echo "🚀 Deploying sample workloads via ConfigHub..."
+echo "Project: $PROJECT"
+echo "Space: $SPACE"
+echo ""
+
+# Get the worker name (should be set by setup-worker)
+WORKER_NAME="devops-test-worker"
+
+# Set target for workload units
+echo "Setting target for workload units..."
+cub unit set-target k8s-$WORKER_NAME --where "Space.Slug = '$SPACE' AND Labels.cost-analysis = 'enabled'" --space $SPACE
+
+# Apply workload units
+echo ""
+echo "Applying workload units..."
+cub unit apply nginx-web --space $SPACE
+echo "✅ Applied nginx-web"
+
+cub unit apply redis-cache --space $SPACE
+echo "✅ Applied redis-cache"
+
+cub unit apply postgres-db --space $SPACE
+echo "✅ Applied postgres-db"
+
+echo ""
+echo "✅ Workloads deployed!"
+echo ""
+echo "Verify deployment:"
+echo "  kubectl get deployments -n default"
+echo "  kubectl get pods -n default"
+echo ""
+echo "Check unit status in ConfigHub:"
+echo "  cub unit list --space $SPACE"
+echo ""
+echo "Next steps:"
+echo "1. Wait 2-3 minutes for metrics to collect"
+echo "2. Run: ./cost-optimizer"
+echo "3. View dashboard: http://localhost:8081/dashboard"
