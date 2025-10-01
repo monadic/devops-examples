@@ -42,27 +42,16 @@ fi
 
 echo "Installing worker to Kubernetes cluster..."
 
-# Export worker manifest
+# Export worker manifest WITH SECRET (--include-secret is critical!)
+# This ensures each worker gets its own unique authentication credentials
 cub worker install $WORKER_NAME \
     --namespace confighub \
     --space $SPACE \
+    --include-secret \
     --export > /tmp/worker-manifest.yaml
 
-# Apply manifest
+# Apply manifest (includes both deployment and secret)
 kubectl apply -f /tmp/worker-manifest.yaml 2>&1 | grep -E "(created|configured)" || true
-echo ""
-
-# Get worker credentials and create secret
-echo "Creating worker credentials secret..."
-WORKER_ENVS=$(cub worker get-envs $WORKER_NAME --space $SPACE)
-WORKER_ID=$(echo "$WORKER_ENVS" | grep CONFIGHUB_WORKER_ID | cut -d'=' -f2)
-WORKER_SECRET=$(echo "$WORKER_ENVS" | grep CONFIGHUB_WORKER_SECRET | cut -d'=' -f2)
-
-kubectl create secret generic confighub-worker-env \
-    -n confighub \
-    --from-literal=CONFIGHUB_WORKER_ID=$WORKER_ID \
-    --from-literal=CONFIGHUB_WORKER_SECRET=$WORKER_SECRET \
-    --dry-run=client -o yaml | kubectl apply -f - 2>&1 | grep -v "unchanged" || true
 echo ""
 
 echo "Waiting for worker to connect..."
