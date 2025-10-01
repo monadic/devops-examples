@@ -65,7 +65,7 @@ func main() {
 		HealthPort:   8080,
 		ClaudeAPIKey: os.Getenv("CLAUDE_API_KEY"),
 		CubToken:     os.Getenv("CUB_TOKEN"),
-		CubBaseURL:   sdk.GetEnvOrDefault("CUB_API_URL", "https://api.confighub.com/v1"),
+		CubBaseURL:   sdk.GetEnvOrDefault("CUB_API_URL", "https://hub.confighub.com/api"),
 	}
 
 	app, err := sdk.NewDevOpsApp(config)
