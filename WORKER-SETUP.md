@@ -4,34 +4,57 @@
 
 All DevOps examples require a **ConfigHub worker** to bridge between ConfigHub and your Kubernetes cluster. Without this worker, units created in ConfigHub won't be deployed to Kubernetes.
 
+## ⚠️ CRITICAL: Always Use `--include-secret`
+
+When installing ConfigHub workers, **you MUST use the `--include-secret` flag** to generate proper authentication credentials for each worker.
+
+**Without `--include-secret`:**
+- Workers will reuse existing secrets with WRONG credentials
+- Workers fail with: `[ERROR] Failed to get bridge worker slug: server returned status 404`
+- Cannot connect or deploy units
+
+**With `--include-secret`:**
+- Each worker gets its own unique `CONFIGHUB_WORKER_SECRET`
+- Workers authenticate successfully
+- Full deployment workflow works
+
 ## Quick Start
 
-### 1. Run the Setup Script
-```bash
-cd /Users/alexisrichardson/github-repos/devops-examples
-./setup-worker.sh
-```
+Each example has a `bin/setup-worker` script that handles worker creation with proper credentials:
 
-This script will:
-- ✅ Create a ConfigHub worker
-- ✅ Configure targets for your Kubernetes cluster
-- ✅ Link units to targets for deployment
-
-### 2. Start the Worker (Required!)
-In a **separate terminal**, run:
-```bash
-cub worker run devops-worker
-```
-
-Keep this running while using the DevOps examples.
-
-### 3. Apply Units to Kubernetes
 ```bash
 # For drift-detector
-cub unit apply --all --space drift-test-demo
+cd drift-detector
+bin/setup-worker
 
-# Check deployment status
-kubectl get deployments -n drift-test
+# For cost-optimizer
+cd cost-optimizer
+bin/setup-worker
+
+# For cost-impact-monitor
+cd cost-impact-monitor
+bin/setup-worker
+```
+
+These scripts will:
+- ✅ Create a ConfigHub worker in the project space
+- ✅ Generate worker deployment with **unique credentials** (`--include-secret`)
+- ✅ Deploy worker as a Kubernetes pod in `confighub` namespace
+- ✅ Automatically create targets for unit deployment
+
+### Verify Worker Status
+```bash
+# Check worker is connected
+cub worker list --space <your-space>
+# Should show: Condition=Ready
+
+# Check targets were created
+cub target list --space <your-space>
+# Should show: k8s-<worker-name> target
+
+# Check worker pod
+kubectl get pods -n confighub
+# Should show: <worker-name>-xxx Running
 ```
 
 ## Architecture Overview
@@ -55,59 +78,99 @@ If the script doesn't work, here are the manual steps:
 
 ### Step 1: Create a Worker
 ```bash
-cub worker create devops-worker --space default
+cub worker create my-worker --space my-space
 ```
 
-### Step 2: Create Targets
+### Step 2: Install Worker to Kubernetes (WITH --include-secret!)
 ```bash
-# For drift-test namespace
-cub target create kind-drift-test \
-  '{"KubeContext":"kind-devops-test","KubeNamespace":"drift-test","WaitTimeout":"2m0s"}' \
-  devops-worker \
-  --space drift-test-demo
+# CRITICAL: Use --include-secret to generate unique credentials
+cub worker install my-worker \
+  --namespace confighub \
+  --space my-space \
+  --include-secret \
+  --export > worker.yaml
 
-# For default namespace (cost-optimizer)
-cub target create kind-default \
-  '{"KubeContext":"kind-devops-test","KubeNamespace":"default","WaitTimeout":"2m0s"}' \
-  devops-worker \
-  --space default
+kubectl apply -f worker.yaml
 ```
 
-### Step 3: Update Units with Target
+### Step 3: Verify Worker Connection
 ```bash
-# Get target ID
-TARGET_ID=$(cub target get kind-drift-test --space drift-test-demo --json | jq -r '.TargetID')
+# Wait for worker to connect
+sleep 10
 
-# Update each unit
-cub unit update backend-api-unit --space drift-test-demo \
-  --patch --data '{"TargetID":"'$TARGET_ID'"}'
+# Check worker status
+cub worker list --space my-space
+# Should show: Condition=Ready
+
+# Check targets were auto-created
+cub target list --space my-space
+# Should show: k8s-my-worker
+
+# Check worker pod
+kubectl logs -n confighub -l app=my-worker --tail=10
+# Should show: "Successfully connected to event stream"
 ```
 
-### Step 4: Run the Worker
+### Step 4: Set Targets for Units
 ```bash
-cub worker run devops-worker
+# Set target for specific units
+cub unit set-target unit-name k8s-my-worker --space my-space
+
+# Or set target for all units in a space
+cub unit set-target k8s-my-worker --where "Space.Slug = 'my-space'" --space my-space
+```
+
+### Step 5: Apply Units
+```bash
+cub unit apply unit-name --space my-space
+
+# Check deployment
+kubectl get all -n default
 ```
 
 ## Troubleshooting
 
-### Worker Not Found
-If you see "BridgeWorker not found", ensure:
-1. Worker was created in the correct space
-2. You're using the correct worker name
-3. You're authenticated: `cub auth get-token`
+### Worker Shows 404 Error (MOST COMMON ISSUE)
+```
+[ERROR] Failed to get bridge worker slug: server returned status 404: 404 Not Found
+```
 
-### Target Creation Failed
-If target creation fails:
-1. Make sure the worker is running first
-2. Check kubectl context: `kubectl config current-context`
-3. Verify namespace exists: `kubectl get ns`
+**Root Cause:** Worker is using wrong authentication credentials (missing `--include-secret`).
+
+**Solution:**
+1. Delete the worker: `kubectl delete deployment <worker-name> -n confighub`
+2. Recreate with `--include-secret`:
+   ```bash
+   cub worker install <worker-name> --space <space> --include-secret --export > worker.yaml
+   kubectl apply -f worker.yaml
+   ```
+3. Verify: `cub worker list --space <space>` should show `Condition=Ready`
+
+### Worker Condition Shows "Disconnected"
+```bash
+$ cub worker list --space my-space
+NAME       CONDITION       SPACE        LAST-SEEN
+my-worker  Disconnected    my-space     0001-01-01 00:00:00
+```
+
+**Causes:**
+1. Missing `--include-secret` (most common)
+2. Worker pod crashed - check logs: `kubectl logs -n confighub -l app=my-worker`
+3. Network issues - check worker can reach ConfigHub API
+
+### No Targets Created
+If `cub target list` shows empty:
+1. Worker must be connected first (Condition=Ready)
+2. Targets are auto-created when worker connects
+3. If worker is Ready but no targets, restart worker pod
 
 ### Units Not Deploying
 If units aren't deploying to Kubernetes:
 1. Check unit has a target: `cub unit get <unit-name> --space <space>`
-2. Verify worker is running and connected
-3. Check worker logs for errors
-4. Apply manually: `cub unit apply <unit-name> --space <space>`
+2. Set target if missing: `cub unit set-target <unit-name> <target-name> --space <space>`
+3. Verify worker is running: `cub worker list --space <space>`
+4. Check worker logs: `kubectl logs -n confighub -l app=<worker-name>`
+5. Apply manually: `cub unit apply <unit-name> --space <space>`
 
 ## Why Is a Worker Needed?
 
