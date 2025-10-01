@@ -209,11 +209,10 @@ func (d *DriftDetectorDemo) driftItemsToResourceState(driftItems []DriftItem) []
 	resources := make([]sdk.ResourceState, len(driftItems))
 	for i, item := range driftItems {
 		resources[i] = sdk.ResourceState{
-			Name:           item.Resource,
-			ConfigHubState: item.Expected,
-			ActualState:    item.Actual,
-			Status:         "DRIFT",
-			Field:          item.Field,
+			Name:         item.Resource,
+			DesiredState: item.Expected,
+			ActualState:  item.Actual,
+			Drift:        true,
 		}
 	}
 	return resources
