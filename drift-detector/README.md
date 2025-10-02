@@ -1,6 +1,6 @@
 # Drift Detector
 
-Event-driven Kubernetes configuration drift detection that leverages ConfigHub's unique capabilities for continuous compliance across multi-environment deployments.
+Event-driven Kubernetes configuration drift detection that leverages ConfigHub's unique capabilities across multi-environment deployments.
 
 ## 📚 Documentation
 
