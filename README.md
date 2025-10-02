@@ -1,10 +1,8 @@
-# DevOps Examples - DevOps as Apps Platform
-
-Production-ready DevOps automation applications built using the ConfigHub SDK. These are persistent Kubernetes applications, not ephemeral workflows.
+# DevOps Examples 
 
 ## 🚀 Overview
 
-This repository demonstrates the **DevOps as Apps** pattern - building DevOps automation as persistent, event-driven Kubernetes applications instead of ephemeral workflows (like agentic devops workflow tools).
+Examples of ConfigHub apps as defined here: [monadic/devops-as-apps-project](https://github.com/monadic/devops-as-apps-project)
 
 1. Drift Detector
 
@@ -33,28 +31,6 @@ This repository demonstrates the **DevOps as Apps** pattern - building DevOps au
   - Self-deploys through ConfigHub
   - Complements Cost Optimizer (monitor = pre-deployment, optimizer = post-deployment)
 
-
-### Key Principles
-
-✅ **Persistent Applications** - Long-running apps, not one-shot workflows
-✅ **Event-Driven** - Kubernetes informers, not polling
-✅ **ConfigHub Native** - Uses Sets, Filters, and push-upgrade patterns
-✅ **AI-Powered** - Claude enabled by default for intelligent analysis
-✅ **Production Ready** - Health checks, metrics, proper error handling
-
-Examples now include **Claude AI by default** with:
-- **Automatic setup** - Prompts for API key if not provided
-- **Debug logging** - See all prompts and responses
-- **Easy disable** - `ENABLE_CLAUDE=false ./run.sh`
-- **Fallback mode** - Works without Claude using basic analysis
-
-```bash
-# Quick setup
-cp .env.example .env
-# Add your CLAUDE_API_KEY to .env
-cd any-example/
-./run.sh  # Handles everything automatically
-```
 
 
 ## 🚀 Quick Start
