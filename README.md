@@ -1,6 +1,6 @@
-# DevOps Examples
+# DevOps Examples as ConfigHub apps
 
-Production-ready DevOps automation applications built with ConfigHub. These are persistent Kubernetes applications following the **DevOps as Apps** pattern - continuous, event-driven apps instead of ephemeral workflows.
+Applications built with ConfigHub. These are following the **DevOps as Apps** pattern [described here](https://github.com/monadic/devops-as-apps-project).
 
 ## 📦 Available Examples
 
