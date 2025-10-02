@@ -290,8 +290,8 @@ You might see additional units for fixed configurations:
 ```
 NAME             SPACE                        STATUS    DESCRIPTION
 k8s-target       drift-detector-1758540677    NoLive    Kubernetes cluster configuration
-backend-api-fix  drift-detector-1758540677    Applied   Fixed replica count from 5 to 3
-frontend-web-fix drift-detector-1758540677    Applied   Fixed replica count from 1 to 2
+backend-api      drift-detector-1758540677    Applied   Fixed replica count from 5 to 3
+frontend-web     drift-detector-1758540677    Applied   Fixed replica count from 1 to 2
 ```
 
 ### 🌐 ConfigHub Web UI
@@ -389,7 +389,7 @@ You should see detection and Claude analysis:
 ### 🔍 Finding Fixed Drift in ConfigHub
 
 > **Quick Answer:** After fixes are applied, look for:
-> - **GUI**: Spaces → your-space → Units tab → `backend-api-fix`, `frontend-web-fix`
+> - **GUI**: Spaces → your-space → Units tab → `backend-api`, `frontend-web`
 > - **CLI**: `cub unit list --space drift-detector-1758540677 --verbose`
 > - **Downstream**: Check Changesets tab or run `cub unit tree --show-downstream`
 
@@ -401,7 +401,7 @@ After drift is fixed and propagated downstream, here's where to find the updates
 2. **Go to your space**: Spaces → `drift-detector-1758540677`
 
 **In the Units Tab:**
-- Look for new units like `backend-api-fix` and `frontend-web-fix`
+- Look for updated units like `backend-api` and `frontend-web` with corrected configurations
 - Status should show `Applied` with green checkmark
 - Click on a unit to see:
   - **Data tab**: The corrected configuration (e.g., `replicas: 3`)
@@ -432,21 +432,21 @@ After drift is fixed and propagated downstream, here's where to find the updates
 #### ConfigHub CLI Commands
 
 ```bash
-# 1. Find the fixed units in your space
+# 1. View the updated units in your space
 cub unit list --space drift-detector-1758540677 --verbose
 ```
 
-You should see new units with "fix" in the name:
+You should see the existing units have been updated (not new units created):
 ```
 NAME              SPACE                        STATUS    LAST-CHANGE
 k8s-target        drift-detector-1758540677    NoLive    Initial configuration
-backend-api-fix   drift-detector-1758540677    Applied   Fixed replicas: 5 → 3
-frontend-web-fix  drift-detector-1758540677    Applied   Fixed replicas: 1 → 2
+backend-api       drift-detector-1758540677    Applied   Fixed replicas: 5 → 3
+frontend-web      drift-detector-1758540677    Applied   Fixed replicas: 1 → 2
 ```
 
 ```bash
-# 2. View the actual fixed configuration
-cub unit get-data backend-api-fix --space drift-detector-1758540677
+# 2. View the corrected configuration
+cub unit get-data backend-api --space drift-detector-1758540677
 ```
 
 You should see the corrected manifest:
@@ -464,7 +464,7 @@ spec:
 
 ```bash
 # 3. Check downstream propagation status
-cub unit get backend-api-fix --space drift-detector-1758540677 --json | jq '.DownstreamUnits'
+cub unit get backend-api --space drift-detector-1758540677 --json | jq '.DownstreamUnits'
 ```
 
 You should see downstream unit IDs:
@@ -478,16 +478,16 @@ You should see downstream unit IDs:
 
 ```bash
 # 4. View the propagation tree across all spaces
-cub unit tree --node=unit --filter backend-api-fix --space '*' --show-downstream
+cub unit tree --node=unit --filter backend-api --space '*' --show-downstream
 ```
 
 You should see the full propagation tree:
 ```
 NODE                          SPACE                            STATUS    DOWNSTREAM
-└── backend-api-fix           drift-detector-1758540677        Applied
-    ├── backend-api-fix       qa-space                         Applied   (inherited)
-    ├── backend-api-fix       staging-space                    Applied   (inherited)
-    └── backend-api-fix       prod-space                       Pending   (awaiting approval)
+└── backend-api               drift-detector-1758540677        Applied
+    ├── backend-api           qa-space                         Applied   (inherited)
+    ├── backend-api           staging-space                    Applied   (inherited)
+    └── backend-api           prod-space                       Pending   (awaiting approval)
 ```
 
 ```bash
@@ -510,7 +510,7 @@ cub bulk-operation get a1b2c3d4-5678-90ab-cdef-111111111111 --json | jq '.Result
 You should see which units were patched:
 ```json
 {
-  "PatchedUnits": ["backend-api-fix", "frontend-web-fix"],
+  "PatchedUnits": ["backend-api", "frontend-web"],
   "DownstreamSpaces": ["qa-space", "staging-space", "prod-space"],
   "UpgradeApplied": true
 }
@@ -531,7 +531,7 @@ cs-003          Push-upgrade to downstream environments      6        2025-09-22
 
 ```bash
 # 8. Verify fixes were applied to Kubernetes
-cub unit get-live-state backend-api-fix --space drift-detector-1758540677
+cub unit get-live-state backend-api --space drift-detector-1758540677
 ```
 
 You should see the live state is now in sync:
