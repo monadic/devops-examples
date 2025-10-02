@@ -1,6 +1,6 @@
 # Cost Optimizer
 
-AI-powered Kubernetes cost optimization that leverages ConfigHub's unique capabilities for continuous, multi-environment cost management.
+AI-powered Kubernetes cost optimization that leverages ConfigHub's apabilities plus Claude AI.
 
 ## 📚 Documentation
 
