@@ -53,10 +53,13 @@ namespace                    cozy-cub-cost-optimizer-base    NoLive
 cost-optimizer-rbac          cozy-cub-cost-optimizer-base    NoLive
 cost-optimizer-deployment    cozy-cub-cost-optimizer-base    NoLive
 cost-optimizer-service       cozy-cub-cost-optimizer-base    NoLive
-metrics-server              cozy-cub-cost-optimizer-base    NoLive
+cost-optimizer-config        cozy-cub-cost-optimizer-base    NoLive
+metrics-server               cozy-cub-cost-optimizer-base    NoLive
 ```
 
-Note: STATUS = "NoLive" means the units exist in ConfigHub but haven't been deployed yet.
+Note:
+- STATUS = "NoLive" means the units exist in ConfigHub but haven't been deployed yet
+- **metrics-server** is required infrastructure for real cost analysis (provides actual CPU/memory metrics)
 
 ## Step 2: Set Up ConfigHub Worker
 
@@ -193,9 +196,28 @@ open http://localhost:8081
   - Duration and success status
   - Debug toggle via `CLAUDE_DEBUG_LOGGING=true`
 
+## Understanding Metrics Collection
+
+The cost-optimizer gets **real resource usage data** from metrics-server:
+
+**How it works:**
+- `metrics-server` collects actual CPU/memory usage from all pods
+- Cost-optimizer queries metrics-server via `kubectl top pods`
+- Real metrics (not estimates) drive AI cost recommendations
+
+**Verify metrics-server is working:**
+```bash
+kubectl top pods -A
+# Shows actual CPU/memory usage for all pods
+```
+
+**In the dashboard:**
+- Look for "📊 Metrics: Real Metrics Server"
+- Real metrics show as `real metrics: true` in logs
+
 ## Step 5: Enable OpenCost (Optional)
 
-For real cloud cost data instead of estimates:
+For real cloud cost data instead of metrics-based estimates:
 
 ```bash
 # Configure OpenCost integration

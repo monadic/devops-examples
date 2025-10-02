@@ -90,7 +90,8 @@ prod -.->|optimizations| applied[applied-changes]
 │   ├── cost-optimizer-deployment     # App deployment config
 │   ├── cost-optimizer-service        # Service endpoints
 │   ├── cost-optimizer-rbac          # Permissions
-│   └── metrics-server               # Required infrastructure
+│   ├── cost-optimizer-config        # ConfigMap for settings
+│   └── metrics-server               # Required infrastructure (real metrics)
 │
 ├── Sets (Grouped Analysis)
 │   ├── critical-costs               # High-priority items >$50/month
@@ -118,6 +119,7 @@ This creates:
 - Base space with optimizer configurations
 - Filters for cost analysis queries
 - Sets for grouping recommendations
+- **Metrics-server** unit for real resource metrics
 
 Next, set up the environment hierarchy:
 

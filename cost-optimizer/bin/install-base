@@ -94,6 +94,10 @@ cub unit create namespace confighub/base/namespace.yaml --space $project-base \
 cub unit create cost-optimizer-config confighub/base/cost-optimizer-config.yaml --space $project-base \
   --label app=cost-optimizer --label type=config
 
+# Metrics Server (required for real cost analysis)
+cub unit create metrics-server confighub/base/metrics-server.yaml --space $project-base \
+  --label app=metrics-server --label tier=critical --label type=infrastructure
+
 echo ""
 echo "✅ Base setup complete!"
 echo ""
