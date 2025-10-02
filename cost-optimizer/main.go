@@ -178,10 +178,14 @@ func NewCostOptimizer() (*CostOptimizer, error) {
 		return nil, fmt.Errorf("initialize ConfigHub: %w", err)
 	}
 
-	// Initialize SDK analyzers
-	optimizer.costAnalyzer = sdk.NewCostAnalyzer(app, optimizer.spaceID)
-	optimizer.wasteAnalyzer = sdk.NewWasteAnalyzer(app, optimizer.spaceID)
-	optimizer.optimizationEngine = sdk.NewOptimizationEngine(app, optimizer.spaceID)
+	// Initialize SDK analyzers only if ConfigHub is available
+	if app.Cub != nil && optimizer.spaceID != uuid.Nil {
+		optimizer.costAnalyzer = sdk.NewCostAnalyzer(app, optimizer.spaceID)
+		optimizer.wasteAnalyzer = sdk.NewWasteAnalyzer(app, optimizer.spaceID)
+		optimizer.optimizationEngine = sdk.NewOptimizationEngine(app, optimizer.spaceID)
+	} else {
+		app.Logger.Println("⚠️  Running in Kubernetes-only mode (no ConfigHub)")
+	}
 
 	// Initialize dashboard
 	optimizer.dashboard = NewDashboard(optimizer)
@@ -290,6 +294,12 @@ func (c *CostOptimizer) initializeConfigHub() error {
 // optimizeCosts performs the main cost optimization analysis using SDK modules
 func (c *CostOptimizer) optimizeCosts() error {
 	c.app.Logger.Println("🔍 Starting cost optimization analysis using SDK modules...")
+
+	// Check if running in Kubernetes-only mode (no ConfigHub)
+	if c.costAnalyzer == nil {
+		c.app.Logger.Println("🔍 Analyzing Kubernetes cluster directly (no ConfigHub space)")
+		return c.fallbackKubernetesAnalysis()
+	}
 
 	// 1. Use SDK cost analyzer to analyze ConfigHub space
 	sdkCostAnalysis, err := c.costAnalyzer.AnalyzeSpace()
