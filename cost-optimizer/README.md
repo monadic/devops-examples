@@ -341,7 +341,21 @@ Low-risk optimizations can be auto-applied:
 - Real-time cost visualization
 - AI recommendations with one-click apply
 - ConfigHub unit browser
-- Claude session history viewer
+- **🤖 Claude API History Viewer** - See all Claude API requests and responses in real-time
+
+### Dashboard Features
+
+**Cost Analysis Section**
+- Total monthly cost with real metrics-server data
+- Potential savings with AI-generated recommendations
+- Resource breakdown by namespace
+
+**Claude AI API Calls Section** (NEW)
+- Live request/response history (last 10 calls)
+- Request ID with timestamp and duration
+- Truncated prompts and responses for visibility
+- Success/error status with color coding
+- Debug logging control via `CLAUDE_DEBUG_LOGGING=true`
 
 ### Sample Dashboard View
 ```
@@ -358,7 +372,30 @@ Low-risk optimizations can be auto-applied:
 │ • Space: fluffy-kitten-dev                            │
 │ • Pending Changes: 3                                   │
 │ • [Apply All] [Review] [Rollback]                     │
+│                                                         │
+│ 🤖 Claude AI API Calls:                               │
+│ ✓ req-1 08:32:56 (3.4s)                               │
+│   Prompt: Analyze this ConfigHub-based cost...        │
+│   Response: The total monthly cost of $118.80...      │
+│ ✓ req-2 08:33:36 (4.2s)                               │
+│   Prompt: Analyze this ConfigHub-based cost...        │
+│   Response: Here's an analysis of the ConfigHub...    │
 └─────────────────────────────────────────────────────────┘
+```
+
+### Accessing the Dashboard
+
+```bash
+# Start cost-optimizer with Claude integration
+export CLAUDE_API_KEY="your-claude-api-key"
+export CLAUDE_DEBUG_LOGGING=false  # Set to true for full prompts/responses in logs
+./cost-optimizer
+
+# Open dashboard in browser
+open http://localhost:8081/dashboard
+
+# Health check
+curl http://localhost:8080/health
 ```
 
 ## Advanced ConfigHub Features

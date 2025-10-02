@@ -183,10 +183,15 @@ open http://localhost:8081
 ```
 
 **You should see:**
-- Real-time cost analysis
-- AI-powered recommendations
+- Real-time cost analysis with metrics-server data
+- AI-powered recommendations from Claude
 - Resource utilization metrics
 - Cost savings opportunities
+- **🤖 Claude API History** - Real-time API request/response viewer showing:
+  - Last 10 Claude API calls with timestamps
+  - Truncated prompts and responses
+  - Duration and success status
+  - Debug toggle via `CLAUDE_DEBUG_LOGGING=true`
 
 ## Step 5: Enable OpenCost (Optional)
 

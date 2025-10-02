@@ -259,16 +259,11 @@ func (d *Dashboard) handleDashboard(w http.ResponseWriter, r *http.Request) {
             <div style="margin-top: 15px;">
                 <h3>Data Sources:</h3>
                 <ul style="list-style: none; padding: 0;">
-                    <li>✅ Kubernetes API: <strong>{{.Analysis.DataSource.KubernetesAPI}}</strong></li>
-                    <li>{{if .Analysis.DataSource.MetricsServer}}✅{{else}}⚠️{{end}} Metrics Server: <strong>{{.Analysis.DataSource.MetricsServer}}</strong> {{if not .Analysis.DataSource.MetricsServer}}(Using 50% simulated utilization){{end}}</li>
-                    <li>✅ ConfigHub Sets: <strong>{{.Analysis.DataSource.ConfigHubSets}}</strong></li>
-                    <li>✅ Claude AI: <strong>{{.Analysis.DataSource.ClaudeAI}}</strong></li>
+                    <li>📊 Metrics: <strong>{{.Analysis.DataSource.MetricsSource}}</strong></li>
+                    <li>💰 Pricing: <strong>{{.Analysis.DataSource.PricingSource}}</strong></li>
+                    <li>🌍 Region: <strong>{{.Analysis.DataSource.Region}}</strong></li>
+                    <li>🔄 Updated: <strong>{{.Analysis.DataSource.LastUpdated.Format "15:04:05"}}</strong></li>
                 </ul>
-                <div style="margin-top: 10px; padding: 10px; background: #e7f3ff; border-left: 4px solid #0066cc; border-radius: 4px;">
-                    <p style="margin: 0; font-size: 0.9rem; color: #003d7a;">
-                        <strong>📝 Claude API Logs:</strong> If you are using Claude API then review prompt and response session history here: <code style="background: #f1f3f5; padding: 2px 4px; border-radius: 3px;">logs/claude-analysis-latest.log</code>
-                    </p>
-                </div>
             </div>
             {{end}}
             <div style="margin-top: 15px; padding: 10px; background: #f8f9fa; border-radius: 6px;">
@@ -295,8 +290,8 @@ func (d *Dashboard) handleDashboard(w http.ResponseWriter, r *http.Request) {
                     <tr style="border-bottom: 1px solid #e0e0e0;">
                         <td style="padding: 8px;">{{.Name}}</td>
                         <td style="padding: 8px; color: #666;">{{.Description}}</td>
-                        <td style="padding: 8px; text-align: center;">{{.ResourceCount}}</td>
-                        <td style="padding: 8px;">{{if .ConfigHubUnit}}{{.ConfigHubUnit}}{{else}}-{{end}}</td>
+                        <td style="padding: 8px; text-align: center;">{{.PodCount}}</td>
+                        <td style="padding: 8px;">-</td>
                     </tr>
                     {{end}}
                 </tbody>
@@ -305,6 +300,46 @@ func (d *Dashboard) handleDashboard(w http.ResponseWriter, r *http.Request) {
             <p style="color: #666;">No namespace information available.</p>
             {{end}}
         </div>
+
+        <!-- Claude AI API Calls Section -->
+        {{if .Analysis.ClaudeAPICalls}}
+        <div class="section">
+            <h2>🤖 Claude AI API Calls</h2>
+            <p style="color: #666; margin-bottom: 15px;">Recent Claude API interactions for intelligent cost analysis</p>
+
+            <div style="display: flex; flex-direction: column; gap: 15px;">
+                {{range .Analysis.ClaudeAPICalls}}
+                <div style="background: {{if .Success}}#f0f9ff{{else}}#fff5f5{{end}}; border-left: 4px solid {{if .Success}}#3b82f6{{else}}#ef4444{{end}}; padding: 15px; border-radius: 4px;">
+                    <div style="display: flex; justify-content: space-between; align-items: center; margin-bottom: 10px;">
+                        <div style="font-weight: 600; color: #333;">
+                            {{if .Success}}✓{{else}}✗{{end}} {{.RequestID}}
+                        </div>
+                        <div style="color: #666; font-size: 0.9em;">
+                            {{.Timestamp.Format "15:04:05"}} • {{.Duration}}
+                        </div>
+                    </div>
+
+                    <div style="margin-bottom: 8px;">
+                        <div style="font-size: 0.85em; color: #666; margin-bottom: 4px;">Prompt:</div>
+                        <div style="background: white; padding: 8px; border-radius: 4px; font-family: monospace; font-size: 0.85em; color: #333; white-space: pre-wrap; word-break: break-word;">{{.Prompt}}</div>
+                    </div>
+
+                    {{if .Success}}
+                    <div>
+                        <div style="font-size: 0.85em; color: #666; margin-bottom: 4px;">Response:</div>
+                        <div style="background: white; padding: 8px; border-radius: 4px; font-family: monospace; font-size: 0.85em; color: #333; white-space: pre-wrap; word-break: break-word;">{{.Response}}</div>
+                    </div>
+                    {{else}}
+                    <div style="color: #ef4444; font-size: 0.9em;">
+                        Error: {{.ErrorMessage}}
+                    </div>
+                    {{end}}
+                </div>
+                {{end}}
+            </div>
+        </div>
+        {{end}}
+
         {{else}}
         <div class="no-data">
             <h2>⏳ Initializing Cost Analysis...</h2>

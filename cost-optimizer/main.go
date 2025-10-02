@@ -45,6 +45,7 @@ type CostAnalysis struct {
 	ConfigHubSpace      string               `json:"confighub_space"`
 	ConfigHubSets       []string             `json:"confighub_sets"`
 	DataSource          DataSourceInfo       `json:"data_source"`
+	ClaudeAPICalls      []sdk.ClaudeAPICall  `json:"claude_api_calls"` // Recent Claude API interactions
 	// SDK analysis results
 	SDKCostAnalysis     *sdk.SpaceCostAnalysis     `json:"-"` // Don't serialize, for internal use
 	SDKWasteAnalysis    *sdk.SpaceWasteAnalysis    `json:"-"` // Don't serialize, for internal use
@@ -692,6 +693,7 @@ func (c *CostOptimizer) convertSDKToDashboardFormat(sdkCostAnalysis *sdk.SpaceCo
 	// Enhance with Claude AI if available
 	if c.app.Claude != nil {
 		c.enhanceWithClaudeAI(analysis)
+		analysis.ClaudeAPICalls = c.app.Claude.GetRecentCalls() // Add recent Claude API call history
 	}
 
 	// Enrich recommendations with specific ConfigHub commands
