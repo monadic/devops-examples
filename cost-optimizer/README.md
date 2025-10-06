@@ -8,9 +8,9 @@ AI-powered Kubernetes cost optimization that leverages ConfigHub's apabilities p
 - **[WORKFLOW.md](WORKFLOW.md)** - Understanding the ConfigHub → Kubernetes workflow
 - **[README.md](README.md)** - Full architecture and features (this document)
 
-## 🆕 OpenCost Integration
+## OpenCost Integration
 
-The cost optimizer now integrates with [OpenCost](https://www.opencost.io/) (CNCF Incubating project) for real-time, accurate cloud cost data instead of estimates.
+The cost optimizer integrates with [OpenCost](https://www.opencost.io/) (CNCF Incubating project) for real-time cloud cost data.
 
 ### Quick Setup
 
@@ -48,19 +48,17 @@ OpenCost follows the same DevOps-as-Apps pattern:
 - Push-upgrade for promotion
 - Persistent monitoring app, not ephemeral workflow
 
-## Why ConfigHub Makes This Better Than DIY or Agentic DevOps Workflow Tools
+## Architecture
 
-### vs DIY Cost Scripts
-- **Persistent State**: ConfigHub tracks all cost analyses in versioned units (not lost in logs)
-- **Multi-Environment**: Push cost optimizations from dev → staging → prod atomically
-- **Audit Trail**: Every recommendation and application is tracked with who/what/when
-- **Rollback**: Instant rollback of any optimization that causes issues
-
-### vs Agentic DevOps Tools
-- **Continuous Monitoring**: Runs 24/7 with informers (not just when triggered)
-- **Stateful Analysis**: Builds cost trends over time in ConfigHub Sets
-- **Bulk Operations**: Apply optimizations across ALL environments with one command
-- **AI Memory**: Claude recommendations stored and tracked across runs
+The cost optimizer uses the following components:
+- Versioned cost analyses stored in ConfigHub units
+- Multi-environment optimization workflow using push-upgrade
+- Audit trail for all recommendations and applications
+- Rollback capability for optimizations
+- Continuous monitoring using Kubernetes informers
+- Cost trends tracked over time in ConfigHub Sets
+- Bulk operations across environments using filters
+- Claude AI recommendations stored in ConfigHub
 
 ## Scenario
 
@@ -433,20 +431,19 @@ for env in dev staging prod; do
 done
 ```
 
-## ConfigHub Advantages Summary
+## Implementation Features
 
-| Feature | DIY Script | Agentic Workflow | ConfigHub + Cost Optimizer |
-|---------|------------|----------------|---------------------------|
-| **Execution Model** | Cron job | Triggered workflow | Continuous with informers |
-| **State Management** | Log files | Stateless | Versioned units in ConfigHub |
-| **Multi-Environment** | Manual copy | Re-run workflow | Push-upgrade propagation |
-| **Bulk Operations** | Loop & apply | Multiple triggers | Single filter + bulk-patch |
-| **Rollback** | Git revert | Re-run old version | Revision history rollback |
-| **Audit Trail** | Logs | Workflow history | Full unit versioning |
-| **AI Integration** | API calls | In workflow | AI-driven config updates |
-| **Cost Tracking** | Spreadsheet | External tool | Sets for grouping configs |
-| **Version Management** | Manual tags | CI/CD pipeline | `cub run set-image-reference` |
-| **Apply Gates** | Manual approval | Pipeline gates | ConfigHub gates (future) |
+The cost optimizer provides:
+- Continuous execution with Kubernetes informers
+- Versioned units in ConfigHub for state management
+- Push-upgrade propagation across environments
+- Single filter + bulk-patch for bulk operations
+- Revision history rollback capability
+- Full unit versioning for audit trail
+- AI-driven configuration updates
+- Sets for grouping configurations
+- Version management via `cub run set-image-reference`
+- ConfigHub gates for controlled promotion (future)
 
 ## Quick Start
 
@@ -487,7 +484,3 @@ cub set get critical-costs --space $(cat .cub-project)-base
   run: |
     cub unit apply cost-optimizer-deployment --space ${{ env.PROJECT }}-dev
 ```
-
----
-
-**Built with ConfigHub** • **Powered by Claude AI** • **Better than DIY or Agentic DevOps Tools**

@@ -8,19 +8,17 @@ Event-driven Kubernetes configuration drift detection that leverages ConfigHub's
 - **[WORKFLOW.md](WORKFLOW.md)** - Understanding the ConfigHub → Kubernetes workflow
 - **[README.md](README.md)** - Full architecture and features (this document)
 
-## Why ConfigHub Makes This Better Than DIY or Agentic DevOps Workflow Tools
+## Architecture
 
-### vs DIY Drift Scripts
-- **Persistent Drift History**: Every drift is stored as a ConfigHub unit (not lost in logs)
-- **Multi-Environment Tracking**: See drift patterns across dev → staging → prod
-- **Auto-Remediation**: Apply corrections atomically with ConfigHub rollback
-- **Compliance Audit**: Complete who/what/when/why trail for every change
-
-### vs Agentic DevOps Tools
-- **Event-Driven**: Uses Kubernetes informers (instant detection vs polling)
-- **Stateful Tracking**: Builds drift patterns over time in ConfigHub Sets
-- **Bulk Correction**: Fix drift across ALL environments with one filter
-- **Self-Healing**: Automatic correction with ConfigHub as source of truth
+The drift detector uses the following components:
+- Persistent drift records stored as ConfigHub units
+- Multi-environment tracking across dev → staging → prod
+- Atomic corrections with ConfigHub rollback capability
+- Audit trail for all changes
+- Event-driven detection using Kubernetes informers
+- ConfigHub Sets for grouping related drift items
+- Bulk correction across environments using filters
+- Automatic correction with ConfigHub as configuration source
 
 ## Scenario
 
@@ -671,33 +669,18 @@ $ ./drift-detector
 - Proper error handling and retries
 - Kubernetes RBAC and service accounts
 
-## Comparison with Agentic DevOps Workflow Tools
+## Implementation Characteristics
 
-| Aspect | Drift Detector (DevOps as Apps) | Agentic Workflow Approach |
-|--------|----------------------------------|----------------|
-| **Architecture** | Persistent Kubernetes application | Ephemeral workflow |
-| **Event Model** | Event-driven informers | Triggered execution |
-| **State** | Stateful, maintains history | Stateless |
-| **Configuration** | ConfigHub Sets & Filters | Workflow YAML |
-| **AI Integration** | Direct Claude API calls | Through their platform |
-| **Customization** | Full source control | Limited to their DSL |
-| **Monitoring** | Built-in dashboard + ConfigHub UI | Platform dependent |
-| **Cost** | Open source + ConfigHub | Per-workflow pricing |
+The drift detector is implemented as a persistent Kubernetes application with the following characteristics:
 
-## Why DevOps as Apps?
-
-This demonstrates the fundamental advantage of the **DevOps as Apps** pattern:
-
-- **Persistent**: Runs continuously, not just when triggered
-- **Event-driven**: Uses Kubernetes informers for real-time response
-- **Intelligent**: Integrates Claude AI for smart decisions
-- **Observable**: Built-in dashboard and ConfigHub UI integration
-- **Scalable**: Standard Kubernetes deployment patterns
-- **Maintainable**: Full source control and testing
-
-Unlike workflow-based tools, this is a first-class application that can be:
-- Versioned and rolled back
-- Monitored with standard tools
-- Scaled horizontally
-- Updated without downtime
-- Extended with custom logic
+- Runs continuously, not just when triggered
+- Uses Kubernetes informers for event-driven response
+- Integrates Claude AI for drift analysis
+- Provides built-in dashboard and ConfigHub UI integration
+- Follows standard Kubernetes deployment patterns
+- Full source control and testing support
+- Version control and rollback capability
+- Monitoring with standard Kubernetes tools
+- Horizontal scaling support
+- Zero-downtime updates
+- Custom logic extensibility
