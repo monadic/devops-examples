@@ -489,33 +489,7 @@ NODE                          SPACE                            STATUS    DOWNSTR
 ```
 
 ```bash
-# 5. Track bulk operations that applied the fixes
-# cub bulk-operation (deprecated) list --space drift-detector-1758540677
-```
-
-You should see operations:
-```
-OPERATION-ID                            TYPE           STATUS      AFFECTED-UNITS    TIMESTAMP
-a1b2c3d4-5678-90ab-cdef-111111111111    BulkPatch     Completed   2                2025-09-22T12:16:17Z
-b2c3d4e5-6789-01bc-def2-222222222222    BulkApply     Completed   2                2025-09-22T12:16:19Z
-```
-
-```bash
-# 6. View detailed bulk operation results
-# cub bulk-operation (deprecated) get a1b2c3d4-5678-90ab-cdef-111111111111 --json | jq '.Results'
-```
-
-You should see which units were patched:
-```json
-{
-  "PatchedUnits": ["backend-api", "frontend-web"],
-  "DownstreamSpaces": ["qa-space", "staging-space", "prod-space"],
-  "UpgradeApplied": true
-}
-```
-
-```bash
-# 7. Check changeset history
+# 5. Check changeset history
 cub changeset list --space drift-detector-1758540677 --limit 5
 ```
 
@@ -528,7 +502,7 @@ cs-003          Push-upgrade to downstream environments      6        2025-09-22
 ```
 
 ```bash
-# 8. Verify fixes were applied to Kubernetes
+# 6. Verify fixes were applied to Kubernetes
 cub unit get-live-state backend-api --space drift-detector-1758540677
 ```
 
@@ -543,7 +517,7 @@ Deployment/backend-api
 ```
 
 ```bash
-# 9. Check which downstream spaces need the update
+# 7. Check which downstream spaces need the update
 cub space list --filter "UpstreamSpaceID = 'drift-detector-1758540677'"
 ```
 
@@ -556,7 +530,7 @@ prod-space     drift-detector-1758540677     Yes              Pending Approval
 ```
 
 ```bash
-# 10. View the complete audit trail
+# 8. View the complete audit trail
 cub audit list --space drift-detector-1758540677 --filter "Action = 'BulkPatchUnits'"
 ```
 

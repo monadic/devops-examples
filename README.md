@@ -52,7 +52,7 @@ cat QUICKSTART.md
 ## 📚 Learn More
 
 - **[DevOps as Apps Architecture](https://github.com/monadic/devops-as-apps-project)** - Full explanation of the pattern
-- **[Canonical Patterns](https://github.com/monadic/devops-as-apps-project/blob/main/CANONICAL-PATTERNS-SUMMARY.md)** - ConfigHub best practices
+- **[CLI Reference](https://github.com/monadic/devops-as-apps-project/blob/main/docs/CLI-REFERENCE.md)** - ConfigHub CLI patterns
 - **[ConfigHub SDK](https://github.com/monadic/devops-sdk)** - Reusable library used by all examples
 
 ## 🏗️ Common Pattern

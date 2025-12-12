@@ -29,13 +29,13 @@ The cost impact monitor has analyzed your Kind cluster resources:
 ### **ConfigHub Corrections Needed:**
 ```bash
 # Fix test-app drift (save $12.80/month)
-cub unit update deployment-test-app --patch --data '{"spec":{"replicas":2}}'
+cub run set-replicas 2 --where "Slug = 'deployment-test-app'" --space $SPACE
 
 # Fix complex-app drift (ensure HA)
-cub unit update deployment-complex-app --patch --data '{"spec":{"replicas":3}}'
+cub run set-replicas 3 --where "Slug = 'deployment-complex-app'" --space $SPACE
 
-# Fix ConfigMap drift
-cub unit update configmap-app-config --patch --data '{"data":{"log_level":"info"}}'
+# Fix ConfigMap drift (update full config)
+cub unit update configmap-app-config fixed-config.yaml --space $SPACE
 ```
 
 ### **Additional Savings Opportunities:**

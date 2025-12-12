@@ -120,8 +120,8 @@ spec:
           periodSeconds: 10
 EOF
 
-cub unit create cost-monitor-deployment --space $space \
-  --data @/tmp/cost-monitor-deployment.yaml \
+cub unit create cost-monitor-deployment /tmp/cost-monitor-deployment.yaml \
+  --space $space \
   --display-name "Cost Impact Monitor Deployment" \
   --label type=deployment --label app=cost-impact-monitor \
   --label monthly_cost=low --label cpu=100m --label memory=256Mi
@@ -149,8 +149,8 @@ spec:
   type: ClusterIP
 EOF
 
-cub unit create cost-monitor-service --space $space \
-  --data @/tmp/cost-monitor-service.yaml \
+cub unit create cost-monitor-service /tmp/cost-monitor-service.yaml \
+  --space $space \
   --display-name "Cost Impact Monitor Service" \
   --label type=service --label app=cost-impact-monitor
 
@@ -166,8 +166,8 @@ metadata:
     managed-by: confighub
 EOF
 
-cub unit create cost-monitor-namespace --space $space \
-  --data @/tmp/cost-monitor-namespace.yaml \
+cub unit create cost-monitor-namespace /tmp/cost-monitor-namespace.yaml \
+  --space $space \
   --display-name "Cost Monitoring Namespace" \
   --label type=namespace --label app=cost-impact-monitor
 
@@ -209,8 +209,8 @@ subjects:
   namespace: cost-monitoring
 EOF
 
-cub unit create cost-monitor-rbac --space $space \
-  --data @/tmp/cost-monitor-rbac.yaml \
+cub unit create cost-monitor-rbac /tmp/cost-monitor-rbac.yaml \
+  --space $space \
   --display-name "Cost Monitor RBAC" \
   --label type=rbac --label app=cost-impact-monitor
 

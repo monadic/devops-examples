@@ -211,10 +211,10 @@ cub filter create optimizer-units Unit \
   --where-field "Labels.app = 'cost-optimizer'" \
   --space fluffy-kitten-filters
 
-# Then use bulk operations with the filter
-cub unit update cost-optimizer-deployment \
-  --space fluffy-kitten-dev \
-  --patch '{"spec": {"replicas": 2}}'
+# Update replicas using cub run (ConfigHub function)
+cub run set-replicas 2 \
+  --where "Slug = 'cost-optimizer-deployment'" \
+  --space fluffy-kitten-dev
 ```
 
 ### 4. Promotion Path (Push-Upgrade Pattern)
@@ -275,10 +275,9 @@ cub revision list cost-optimizer-deployment --space fluffy-kitten-dev
 If an optimization causes issues, update the unit:
 
 ```bash
-# Update unit to previous configuration
-cub unit update cost-optimizer-deployment \
-  --space fluffy-kitten-prod \
-  --data @previous-config.yaml
+# Update unit to previous configuration (positional file argument)
+cub unit update cost-optimizer-deployment previous-config.yaml \
+  --space fluffy-kitten-prod
 
 # View unit configuration
 cub unit get cost-optimizer-deployment \
