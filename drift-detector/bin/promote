@@ -41,17 +41,16 @@ fi
 
 # Check for changes that need promotion
 echo "Checking for changes to promote..."
-cub unit list --space $to_space --filter "UpgradeNeeded = true"
+cub unit list --space $to_space --where "UpgradeNeeded = true"
 
 # Use push-upgrade pattern to promote changes
 echo ""
 echo "Promoting changes using push-upgrade..."
 
 # Push upgrade for all units in the target space that have upstream in source space
-cub bulk patch \
+cub unit update --patch --upgrade \
   --space $to_space \
-  --where "UpstreamSpaceID = '$from_space'" \
-  --upgrade true
+  --where "UpstreamSpaceID != ''"
 
 echo ""
 echo "✅ Promotion complete!"

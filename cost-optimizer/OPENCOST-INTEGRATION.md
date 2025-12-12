@@ -217,7 +217,7 @@ cub set create data-intensive --space $project \
   --label cost-category=storage
 
 # Apply optimizations to entire Sets
-cub bulk patch --set gpu-workloads \
+cub unit update --patch --where --set gpu-workloads \
   --patch '{"spec": {"nodeSelector": {"instance-type": "spot"}}}'
 ```
 
@@ -300,7 +300,7 @@ cub set create gcp-resources --filter "Labels.cloud='gcp'"
 cub set create azure-resources --filter "Labels.cloud='azure'"
 
 # Apply cloud-specific optimizations
-cub bulk patch --set aws-resources --patch '{"spec": {"instance-type": "t3.medium"}}'
+cub unit update --patch --where --set aws-resources --patch '{"spec": {"instance-type": "t3.medium"}}'
 ```
 
 ## Next Steps

@@ -126,14 +126,8 @@ create_cloud_config "staging" "aws" "mixed" "0.15"
 # Production environment - enterprise discounts
 create_cloud_config "prod" "aws" "enterprise" "0.25"
 
-# Add cloud configs to Sets
-echo -e "\n${YELLOW}Adding cloud configs to Sets...${NC}"
-
-cub set add-unit cloud-configs opencost-cloud-config-dev --space $project-sets || true
-cub set add-unit cloud-configs opencost-cloud-config-staging --space $project-sets || true
-cub set add-unit cloud-configs opencost-cloud-config-prod --space $project-sets || true
-
-echo -e "${GREEN}✓ Added cloud configs to Sets${NC}"
+# Note: Sets can be managed via API but not CLI
+# Use labels for grouping instead: --label set=cloud-configs
 
 # Create patch for multi-cloud support
 echo -e "\n${YELLOW}Creating multi-cloud patch units...${NC}"

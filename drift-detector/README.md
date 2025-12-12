@@ -490,7 +490,7 @@ NODE                          SPACE                            STATUS    DOWNSTR
 
 ```bash
 # 5. Track bulk operations that applied the fixes
-cub bulk-operation list --space drift-detector-1758540677
+# cub bulk-operation (deprecated) list --space drift-detector-1758540677
 ```
 
 You should see operations:
@@ -502,7 +502,7 @@ b2c3d4e5-6789-01bc-def2-222222222222    BulkApply     Completed   2             
 
 ```bash
 # 6. View detailed bulk operation results
-cub bulk-operation get a1b2c3d4-5678-90ab-cdef-111111111111 --json | jq '.Results'
+# cub bulk-operation (deprecated) get a1b2c3d4-5678-90ab-cdef-111111111111 --json | jq '.Results'
 ```
 
 You should see which units were patched:

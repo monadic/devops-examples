@@ -252,7 +252,7 @@ go test -v
 ## Troubleshooting
 
 ### Monitor not detecting changes
-- Check ConfigHub authentication: `cub auth status`
+- Check ConfigHub authentication: `cub auth get-token`
 - Verify spaces are accessible: `cub space list`
 - Check logs: `kubectl logs -n cost-monitoring deploy/cost-impact-monitor`
 

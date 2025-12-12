@@ -254,12 +254,8 @@ cub unit create opencost-clusterrolebinding /tmp/opencost-clusterrolebinding.yam
 
 echo -e "${GREEN}✓ Created all OpenCost base units${NC}"
 
-# Add units to Sets
-echo -e "\n${YELLOW}Adding units to Sets...${NC}"
-cub set add-unit core-components opencost-deployment --space $project-sets || true
-cub set add-unit core-components opencost-service --space $project-sets || true
-
-echo -e "${GREEN}✓ Added units to Sets${NC}"
+# Note: Sets can be managed via API but not CLI
+# Use labels for grouping instead: --label set=core-components
 
 echo -e "\n${GREEN}🎉 OpenCost base setup complete!${NC}"
 echo -e "\nNext steps:"

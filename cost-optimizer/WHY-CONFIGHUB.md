@@ -114,7 +114,7 @@ cub unit list --space '*' \
   --label "savings>50"
 
 # Apply learnings everywhere
-cub unit clone successful-optimizations \
+cub unit create --upstream-unit successful-optimizations \
   --from us-cluster \
   --to eu-cluster asia-cluster
 ```

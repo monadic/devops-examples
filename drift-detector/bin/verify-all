@@ -40,10 +40,8 @@ echo -e "${YELLOW}[1/7] Verifying Environment...${NC}"
 
 # Check ConfigHub authentication
 echo -n "  ${WAIT} ConfigHub authentication... "
-if cub auth status &>/dev/null; then
+if cub auth get-token &>/dev/null; then
     echo -e "${GREEN}${CHECK} Connected${NC}"
-    CUB_USER=$(cub auth status 2>/dev/null | grep "Logged in as" | awk '{print $NF}')
-    echo -e "      ${INFO} User: ${CUB_USER}"
 else
     echo -e "${RED}${CROSS} Not authenticated${NC}"
     echo -e "      ${INFO} Run: cub auth login"

@@ -50,45 +50,36 @@ else
     echo -e "\nCloning to dev environment..."
     for unit in $base_units; do
         echo "  Cloning $unit to dev..."
-        base_unit_id=$(cub unit get $unit --space $project-base --format json | jq -r '.id // empty' 2>/dev/null || echo "")
-        if [ ! -z "$base_unit_id" ]; then
-            # Create dev unit with upstream pointing to base
-            cub unit clone $unit \
-              --source-space $project-base \
-              --dest-space $project-dev \
-              --upstream-unit $base_unit_id \
-              --label env=dev || true
-        fi
+        # Create dev unit with upstream pointing to base
+        cub unit create $unit \
+          --space $project-dev \
+          --upstream-unit $unit \
+          --upstream-space $project-base \
+          --label env=dev || true
     done
-    
+
     # Clone to staging with upstream from dev
     echo -e "\nCloning to staging environment..."
     dev_units=$(cub unit list --space $project-dev --format json | jq -r '.[].name // empty' 2>/dev/null || echo "")
     for unit in $dev_units; do
         echo "  Cloning $unit to staging..."
-        dev_unit_id=$(cub unit get $unit --space $project-dev --format json | jq -r '.id // empty' 2>/dev/null || echo "")
-        if [ ! -z "$dev_unit_id" ]; then
-            cub unit clone $unit \
-              --source-space $project-dev \
-              --dest-space $project-staging \
-              --upstream-unit $dev_unit_id \
-              --label env=staging || true
-        fi
+        cub unit create $unit \
+          --space $project-staging \
+          --upstream-unit $unit \
+          --upstream-space $project-dev \
+          --label env=staging || true
     done
-    
+
     # Clone to prod with upstream from staging
     echo -e "\nCloning to production environment..."
     staging_units=$(cub unit list --space $project-staging --format json | jq -r '.[].name // empty' 2>/dev/null || echo "")
     for unit in $staging_units; do
         echo "  Cloning $unit to production..."
-        staging_unit_id=$(cub unit get $unit --space $project-staging --format json | jq -r '.id // empty' 2>/dev/null || echo "")
-        if [ ! -z "$staging_unit_id" ]; then
-            cub unit clone $unit \
-              --source-space $project-staging \
-              --dest-space $project-prod \
-              --upstream-unit $staging_unit_id \
-              --label env=prod || true
-        fi
+        cub unit create $unit \
+          --space $project-prod \
+          --upstream-unit $unit \
+          --upstream-space $project-staging \
+          --label env=prod || true
     done
 fi
 

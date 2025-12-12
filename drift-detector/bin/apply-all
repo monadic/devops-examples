@@ -50,7 +50,7 @@ cub unit apply drift-detector-deployment --space $space
 # Use bulk apply for all units with specific label
 echo ""
 echo "Alternative: Applying all units with bulk operation..."
-cub bulk apply --space $space --where "Labels.app = 'drift-detector'"
+cub unit apply --space $space --where "Labels.app = 'drift-detector'"
 
 echo ""
 echo "✅ Application complete!"

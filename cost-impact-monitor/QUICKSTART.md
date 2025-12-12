@@ -297,7 +297,7 @@ kubectl logs -n cost-monitoring deployment/cost-impact-monitor
 
 ```bash
 # Check ConfigHub authentication
-cub auth status
+cub auth get-token
 
 # Verify spaces are accessible
 cub space list

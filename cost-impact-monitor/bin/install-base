@@ -10,7 +10,7 @@ if [ -e ".cub-project" ]; then
 fi
 
 # Authenticate with ConfigHub
-if ! cub auth status > /dev/null 2>&1; then
+if ! cub auth get-token > /dev/null 2>&1; then
   echo "Please login to ConfigHub first: cub auth login"
   exit 1
 fi
