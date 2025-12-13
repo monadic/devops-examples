@@ -43,11 +43,24 @@ cat QUICKSTART.md
 
 ## 📋 Prerequisites
 
-- **ConfigHub account** - [Sign up](https://confighub.com)
-- **ConfigHub CLI** - `brew install confighubai/tap/cub`
-- **Kubernetes cluster** - Kind, Minikube, or cloud provider
-- **Claude API key** - [Get one](https://console.anthropic.com/settings/keys)
-- **Go 1.21+** - For building from source
+**New to ConfigHub?** Start with [MicroTraderX](https://github.com/monadic/microtraderx#prerequisites) for step-by-step setup instructions.
+
+**Quick checklist** (assumes tools already installed):
+
+| Requirement | Installation | Verify |
+|-------------|-------------|--------|
+| Docker | `brew install --cask docker` | `docker info` |
+| ConfigHub account | [Sign up](https://hub.confighub.com) | - |
+| ConfigHub CLI | `brew install confighubai/tap/cub` | `cub version` |
+| ConfigHub login | `cub auth login` | `cub auth status` |
+| Kubernetes (Kind) | `brew install kind && kind create cluster` | `kubectl cluster-info` |
+| Claude API key | [Get one](https://console.anthropic.com/settings/keys) | - |
+| Go 1.21+ | `brew install go` | `go version` |
+
+**Pre-flight check:**
+```bash
+curl -fsSL https://raw.githubusercontent.com/monadic/devops-sdk/main/test-confighub-k8s | bash
+```
 
 ## 📚 Learn More
 
