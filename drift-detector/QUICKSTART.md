@@ -16,6 +16,16 @@ kind create cluster --name devops-test
 kubectl cluster-info
 ```
 
+### Pre-Flight Check
+
+Before deploying, verify your ConfigHub + Kubernetes environment:
+
+```bash
+curl -fsSL https://raw.githubusercontent.com/monadic/devops-sdk/main/test-confighub-k8s | bash
+```
+
+Expected output: `🎉 SUCCESS! ConfigHub + Kubernetes integration verified`
+
 ## Step 1: Create ConfigHub Structure
 
 This creates spaces, filters, and base units in ConfigHub:
@@ -102,6 +112,26 @@ devops-test-worker-85df78d66c-trgrl   1/1     Running   0          30s
 NAME                  CONDITION    SPACE
 devops-test-worker    Ready        cozy-cub-drift-detector-base
 ```
+
+## Step 2.5: Create Required Secrets
+
+The drift-detector deployment requires secrets for ConfigHub and Claude API access:
+
+```bash
+# Get your ConfigHub token
+CUB_TOKEN=$(cub auth get-token)
+
+# Create the namespace first (if not already created)
+kubectl create namespace devops-apps --dry-run=client -o yaml | kubectl apply -f -
+
+# Create the secrets
+kubectl create secret generic drift-detector-secrets \
+  --from-literal=cub-token="$CUB_TOKEN" \
+  --from-literal=claude-api-key="${CLAUDE_API_KEY:-placeholder}" \
+  -n devops-apps
+```
+
+**Important:** Without these secrets, the deployment will stay in "Progressing" state indefinitely with no clear error message. If you don't have a Claude API key yet, use "placeholder" - the app will work but AI features will be disabled.
 
 ## Step 3: Set Targets and Apply Units
 

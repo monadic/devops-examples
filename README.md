@@ -51,7 +51,7 @@ cat QUICKSTART.md
 |-------------|-------------|--------|
 | Docker | `brew install --cask docker` | `docker info` |
 | ConfigHub account | [Sign up](https://hub.confighub.com) | - |
-| ConfigHub CLI | `brew install confighubai/tap/cub` | `cub version` |
+| ConfigHub CLI | `curl -fsSL https://hub.confighub.com/cub/install.sh \| bash` | `cub version` |
 | ConfigHub login | `cub auth login` | `cub auth status` |
 | Kubernetes (Kind) | `brew install kind && kind create cluster` | `kubectl cluster-info` |
 | Claude API key | [Get one](https://console.anthropic.com/settings/keys) | - |
@@ -79,6 +79,22 @@ All examples follow the same structure:
 - ConfigHub Sets and Filters for bulk operations
 
 See each example's README for detailed architecture and deployment instructions.
+
+## 📝 Documentation Quality Standards
+
+**Documentation Code is Production Code:**
+
+All `cub` commands in README, QUICKSTART, and other `.md` files must be validated before committing:
+
+```bash
+# 1. Run Mini TCK (environment check)
+curl -fsSL https://raw.githubusercontent.com/monadic/devops-sdk/main/test-confighub-k8s | bash
+
+# 2. Validate all cub commands in documentation
+curl -fsSL https://raw.githubusercontent.com/monadic/devops-sdk/main/cub-command-analyzer.sh | bash -s -- .
+```
+
+Users copy-paste commands from docs. Invalid examples waste hours of debugging time.
 
 ## 📄 License
 
