@@ -1,6 +1,6 @@
 # ConfigHub → Kubernetes Workflow
 
-This document explains the workflow for deploying configurations through ConfigHub to Kubernetes.
+> **ConfigHub Documentation**: For detailed explanations of units, workers, targets, and apply operations, see [docs.confighub.com](https://docs.confighub.com). This document covers cost-impact-monitor-specific workflow.
 
 ## Architecture Overview
 

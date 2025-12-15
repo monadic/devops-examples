@@ -1,5 +1,7 @@
 # ConfigHub Worker Setup Guide
 
+> **ConfigHub Documentation**: For comprehensive worker documentation (installation, RBAC, live-state, reconciliation), see [docs.confighub.com](https://docs.confighub.com). This guide covers DevOps-examples-specific setup.
+
 ## 🚨 IMPORTANT: Worker Required for ConfigHub ↔ Kubernetes Integration
 
 All DevOps examples require a **ConfigHub worker** to bridge between ConfigHub and your Kubernetes cluster. Without this worker, units created in ConfigHub won't be deployed to Kubernetes.
@@ -174,17 +176,7 @@ If units aren't deploying to Kubernetes:
 
 ## Why Is a Worker Needed?
 
-ConfigHub is a **control plane** that stores desired configuration. To actually deploy resources to Kubernetes, you need a **worker** that:
-
-1. **Polls ConfigHub** for units to deploy
-2. **Translates** ConfigHub units to Kubernetes resources
-3. **Applies** resources to the cluster
-4. **Reports** status back to ConfigHub
-
-Without a worker:
-- Units exist only in ConfigHub (configuration storage)
-- No actual Kubernetes resources are created
-- Drift-detector can't compare desired vs actual state
+See [worker documentation](https://docs.confighub.com) for details. In brief: workers bridge ConfigHub (desired state) to Kubernetes (actual state). Without a worker, DevOps examples can't compare desired vs actual state for drift detection or cost analysis.
 
 ## Integration with DevOps Apps
 

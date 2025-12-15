@@ -1,101 +1,158 @@
-# DevOps Examples as ConfigHub apps
+# DevOps Examples
 
-Applications built with ConfigHub. These are following the **DevOps as Apps** pattern [described here](https://github.com/monadic/devops-as-apps-project).
+Kubernetes applications that use ConfigHub for fleet-wide operations.
 
-## 📦 Available Examples
+## The Problem
 
-### 1. [Drift Detector](./drift-detector)
-- Event-driven Kubernetes configuration drift detection
-- Uses ConfigHub Sets, Filters, and bulk operations
-- Auto-corrects drift by updating existing units (not creating new "-fix" units)
-- Real-time dashboard on :8080
-- Claude AI integration for drift analysis
-- Full ConfigHub deployment pattern with push-upgrade
+Argo and Flux deploy configurations. They don't help you:
 
-### 2. [Cost Optimizer](./cost-optimizer)
-- AI-powered cost optimization with Claude
-- NEW: OpenCost integration for real cloud cost data (vs estimates)
-- Web dashboard on :8081 with Claude API history viewer
-- Metrics-server integration for real resource usage
-- Uses Sets for grouping recommendations
-- Push-upgrade for promoting optimizations across environments
+1. **Query a large fleet** - "Which of my 500 deployments run image X?"
+2. **Make fleet-wide changes** - "Patch all of them to image Y"
+3. **Build an API for this** - Programmatic access, not file editing
 
-### 3. [Cost Impact Monitor](./cost-impact-monitor)
-- Pre-deployment cost analysis before units are applied
-- Monitors all ConfigHub spaces for cost impact
-- Trigger-based hooks (pre/post deployment)
-- Web dashboard on :8083
-- Self-deploys through ConfigHub
-- Complements Cost Optimizer (monitor = pre-deployment, optimizer = post-deployment)
+These tools reconcile Git → Cluster. They don't provide an operational layer for querying and mutating configurations at scale.
 
-## 🚀 Quick Start
+## What ConfigHub Adds
 
-Each example has complete setup instructions in its own README:
+| Need | GitOps Tools | ConfigHub |
+|------|--------------|-----------|
+| Query fleet | Grep across repos | `cub unit list --where "Data CONTAINS 'image:v1'"` |
+| Bulk change | Edit files, commit, PR, wait | `cub run set-image --space '*-prod-*'` |
+| API access | Build your own | ConfigHub API + SDK |
+| See all states | Argo UI (per-app) | Desired vs Live vs Drift (fleet-wide) |
+
+### Multiple Views of State
+
+| View | What it is | Where it lives |
+|------|------------|----------------|
+| **Desired** | What you declared | ConfigHub unit |
+| **Live** | What's actually in the cluster | Queried via BridgeWorker |
+| **Drift** | Are they equal? | Computed |
 
 ```bash
-# Example: Drift Detector
-cd drift-detector
-cat README.md  # Full setup guide
+# See what you declared
+cub unit get-data trade-service --space prod-eu
 
-# Or use the QUICKSTART.md for fast setup
-cat QUICKSTART.md
+# See what's actually running
+cub unit livestate trade-service --space prod-eu
+
+# See the difference
+cub unit diff trade-service --space prod-eu
 ```
 
-## 📋 Prerequisites
+Argo shows sync status per-application. ConfigHub shows Desired/Live/Drift across the entire fleet.
 
-**New to ConfigHub?** Start with [MicroTraderX](https://github.com/monadic/microtraderx#prerequisites) for step-by-step setup instructions.
+**The model:** Git is the source. CI syncs Git → ConfigHub. ConfigHub provides the query/mutation layer.
 
-**Quick checklist** (assumes tools already installed):
+```
+Git (source) → CI syncs → ConfigHub (query + mutate) → applies → Kubernetes
+                               ↑
+                     These examples use ConfigHub here
+                               │
+                               └── sync back to Git (PR) when needed
+```
 
-| Requirement | Installation | Verify |
-|-------------|-------------|--------|
-| Docker | `brew install --cask docker` | `docker info` |
-| ConfigHub account | [Sign up](https://hub.confighub.com) | - |
-| ConfigHub CLI | `curl -fsSL https://hub.confighub.com/cub/install.sh \| bash` | `cub version` |
-| ConfigHub login | `cub auth login` | `cub auth status` |
-| Kubernetes (Kind) | `brew install kind && kind create cluster` | `kubectl cluster-info` |
-| Claude API key | [Get one](https://console.anthropic.com/settings/keys) | - |
-| Go 1.21+ | `brew install go` | `go version` |
+## Examples
 
-**Pre-flight check:**
+### Operational Today
+
+#### [drift-detector](./drift-detector)
+Detects when Kubernetes runtime state differs from ConfigHub units.
+
+**Problem it solves:** "Something changed my deployment, but I don't know what or when."
+
+**How it uses ConfigHub:** Queries all units, compares to kubectl output, reports drift, optionally auto-corrects.
+
+#### [cost-optimizer](./cost-optimizer)
+Analyzes resource usage and suggests right-sizing.
+
+**Problem it solves:** "My clusters are over-provisioned but I don't know where to cut."
+
+**How it uses ConfigHub:** Queries units for resource requests/limits, correlates with metrics-server data, suggests patches.
+
+#### [cost-impact-monitor](./cost-impact-monitor)
+Pre-deployment cost analysis.
+
+**Problem it solves:** "I want to know the cost impact before I deploy."
+
+**How it uses ConfigHub:** Hooks into unit apply events, calculates cost delta, reports before deployment completes.
+
+### Planned
+
+#### [cve-responder](./cve-responder) (SPEC only)
+Automated CVE response across infrastructure.
+
+**Problem it solves:** "A critical CVE dropped. I need to find and patch all affected deployments in minutes, not hours."
+
+**How it uses ConfigHub:**
+1. Query: `cub unit list --where "Data CONTAINS 'vulnerable-image:1.0'"` (seconds)
+2. Patch: `cub run set-image --image 'patched:1.1' --where "..."` (bulk update)
+3. Apply: `cub unit apply --where "..."` (immediate, no PR wait)
+4. Sync: Open PR to Git with the changes (eventual consistency)
+
+See [cve-responder/SPEC.md](./cve-responder/SPEC.md) for details.
+
+#### [config-lineage](./config-lineage) (SPEC only)
+Configuration inheritance visualization.
+
+**Problem it solves:** "Why does prod-eu have replicas=5? Where did that value come from?"
+
+**How it uses ConfigHub:**
+- Walk upstream chain: prod-eu → prod → base
+- Show which layer set each value
+- Impact analysis: "What downstream units are affected if I change base?"
+
+See [config-lineage/SPEC.md](./config-lineage/SPEC.md) for details.
+
+## For Argo/Flux Users
+
+ConfigHub doesn't replace your GitOps workflow. It adds what's missing:
+
+1. **Git stays the source** - your manifests stay in Git
+2. **CI syncs to ConfigHub** - same CI pipeline, additional sync target
+3. **Query and mutate via ConfigHub** - fleet-wide visibility and changes
+4. **Sync back to Git** - PRs keep Git consistent after operational changes
+
+Argo/Flux continue to deploy. ConfigHub provides the operational API they lack.
+
+## Quick Start
+
+Each example has setup instructions in its directory. Prerequisites:
+
 ```bash
+# ConfigHub CLI
+curl -fsSL https://hub.confighub.com/cub/install.sh | bash
+cub auth login
+
+# Kubernetes (local)
+kind create cluster
+
+# Verify setup
 curl -fsSL https://raw.githubusercontent.com/monadic/devops-sdk/main/test-confighub-k8s | bash
 ```
 
-## 📚 Learn More
+## Project Structure
 
-- **[DevOps as Apps Architecture](https://github.com/monadic/devops-as-apps-project)** - Full explanation of the pattern
-- **[CLI Reference](https://github.com/monadic/devops-as-apps-project/blob/main/docs/CLI-REFERENCE.md)** - ConfigHub CLI patterns
-- **[ConfigHub SDK](https://github.com/monadic/devops-sdk)** - Reusable library used by all examples
+```
+devops-examples/
+├── drift-detector/       # Runtime drift detection
+├── cost-optimizer/       # Resource right-sizing
+├── cost-impact-monitor/  # Pre-deploy cost analysis
+├── cve-responder/        # CVE response automation (SPEC)
+└── config-lineage/       # Inheritance visualization (SPEC)
+```
 
-## 🏗️ Common Pattern
+All examples use the [devops-sdk](https://github.com/monadic/devops-sdk) for ConfigHub operations.
 
-All examples follow the same structure:
-- Deploy via ConfigHub (not kubectl)
-- Environment hierarchy: base → dev → staging → prod
-- Event-driven with Kubernetes informers
-- Claude AI integration
-- Push-upgrade for promotions
-- ConfigHub Sets and Filters for bulk operations
+## Documentation Standards
 
-See each example's README for detailed architecture and deployment instructions.
-
-## 📝 Documentation Quality Standards
-
-**Documentation Code is Production Code:**
-
-All `cub` commands in README, QUICKSTART, and other `.md` files must be validated before committing:
+Commands in README files are validated before commit:
 
 ```bash
-# 1. Run Mini TCK (environment check)
-curl -fsSL https://raw.githubusercontent.com/monadic/devops-sdk/main/test-confighub-k8s | bash
-
-# 2. Validate all cub commands in documentation
+# Validate cub commands in docs
 curl -fsSL https://raw.githubusercontent.com/monadic/devops-sdk/main/cub-command-analyzer.sh | bash -s -- .
 ```
 
-Users copy-paste commands from docs. Invalid examples waste hours of debugging time.
-
-## 📄 License
+## License
 
 Proprietary - ConfigHub, Inc.

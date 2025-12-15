@@ -1,15 +1,10 @@
 # Why ConfigHub for Drift Detector
 
+> **ConfigHub Documentation**: For detailed ConfigHub concepts (Sets, Filters, push-upgrade, rollback, gates), see [docs.confighub.com](https://docs.confighub.com). This document explains why ConfigHub is particularly suited for drift detection.
+
 ## Core Rationale: DevOps Apps on ConfigHub
 
-### The Fundamental Problem
-Configuration drift is inevitable in Kubernetes:
-- **Manual kubectl edits** bypass GitOps
-- **Auto-scaling** changes replica counts
-- **Operators** modify resources
-- **Emergency fixes** skip proper channels
-
-Traditional solutions fail because they're **reactive and stateless**. ConfigHub + DevOps Apps provides **proactive, stateful drift management**.
+Configuration drift is inevitable in Kubernetes (manual edits, auto-scaling, operators, emergency fixes). Traditional solutions are reactive and stateless. ConfigHub + DevOps Apps provides proactive, stateful drift management.
 
 ## Specific Advantages for Drift Detection
 

@@ -206,7 +206,7 @@ func serveLiveData(w http.ResponseWriter, r *http.Request) {
 					correction := Correction{
 						Resource: dep.Name,
 						Issue:    fmt.Sprintf("Running %d replicas (expected: %d)", replicas, expected),
-						Command:  fmt.Sprintf("cub unit update %s --space %s --patch --from-stdin <<< '{\"spec\":{\"replicas\":%d}}'", dep.Name, space, expected),
+						Command:  fmt.Sprintf("cub run set-replicas --replicas %d --unit %s --space %s && cub unit apply %s --space %s", expected, dep.Name, space, dep.Name, space),
 						Impact:   fmt.Sprintf("Save $%.2f/month", driftImpact),
 					}
 					data.Corrections = append(data.Corrections, correction)

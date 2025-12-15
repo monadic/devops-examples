@@ -1,28 +1,8 @@
 # DevOps App Core Principles
 
+> **ConfigHub Documentation**: For detailed ConfigHub concepts (spaces, units, workers, functions, changesets, helm, packages), see [docs.confighub.com](https://docs.confighub.com). This document focuses on DevOps app architecture principles.
+
 These are the fundamental principles that every DevOps app in our architecture must follow. They're derived from real implementation experience and the global-app canonical patterns.
-
-## Recent ConfigHub Capabilities (2024-11)
-
-### Functions Framework
-- **Functions**: ConfigHub now has a functions framework for operations on units
-- **Commands**: `cub function list`, `cub function explain`, `cub function do`
-- **Categories**: Inspection (read-only), Modification (mutating), Validation
-- **Use case**: Programmatic manipulation of configurations without local files
-
-### ChangeSets
-- **Purpose**: Group related changes together (different from Sets)
-- **Automatic filtering**: Functions can operate on ChangeSet members
-- **Bulk operations**: Delete, update ChangeSets in bulk
-
-### Helm Integration
-- **Native Helm support**: `cub helm install`, `cub helm upgrade`
-- **Chart management**: Store Helm charts as ConfigHub units
-- **Values management**: ConfigHub handles Helm values merging
-
-### Package System
-- **Package commands**: Create and load configuration packages
-- **Unit packaging**: Bundle related units for distribution
 
 ## PRINCIPLE #0: Each Component is a Config Unit, App is the Collection
 

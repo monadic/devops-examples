@@ -483,3 +483,19 @@ cub set get critical-costs --space $(cat .cub-project)-base
   run: |
     cub unit apply cost-optimizer-deployment --space ${{ env.PROJECT }}-dev
 ```
+
+## Documentation Quality Standards
+
+**Documentation Code is Production Code:**
+
+All `cub` commands in this README and QUICKSTART.md must be validated before changes are committed:
+
+```bash
+# 1. Run Mini TCK (environment check)
+curl -fsSL https://raw.githubusercontent.com/monadic/devops-sdk/main/test-confighub-k8s | bash
+
+# 2. Validate all cub commands in documentation
+curl -fsSL https://raw.githubusercontent.com/monadic/devops-sdk/main/cub-command-analyzer.sh | bash -s -- .
+```
+
+Users copy-paste commands from docs. Invalid examples waste hours of debugging time.

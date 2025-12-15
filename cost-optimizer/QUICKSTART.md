@@ -16,6 +16,16 @@ kind create cluster --name devops-test
 kubectl cluster-info
 ```
 
+### Pre-Flight Check
+
+Before deploying, verify your ConfigHub + Kubernetes environment:
+
+```bash
+curl -fsSL https://raw.githubusercontent.com/monadic/devops-sdk/main/test-confighub-k8s | bash
+```
+
+Expected output: `🎉 SUCCESS! ConfigHub + Kubernetes integration verified`
+
 ## Step 1: Create ConfigHub Structure
 
 This creates spaces, filters, and base units in ConfigHub:
